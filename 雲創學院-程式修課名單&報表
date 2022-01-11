@@ -121,4 +121,7 @@ df_merge3.rename(columns={'學年期':'學年期', 'TYPE_NAME':'學制', 'COLLEG
 output2 = df_merge3.to_excel(r'C:\Users\User\PycharmProjects\pythonProject4\雲創學院(予珍)\output\1101選修課名單.xlsx')
 
 
+##---------到tableau做圖---------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 
