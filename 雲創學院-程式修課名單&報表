@@ -1,0 +1,124 @@
+import sys
+sys.modules[__name__].__dict__.clear()
+
+import pandas as pd
+import pyodbc
+# Some other example server values are
+# server = 'localhost\sqlexpress' # for a named instance
+# server = 'myserver,port' # to specify an alternate port
+
+server = '---.---.--.--'
+database = '-----'
+username = '-----'
+password = '-----'
+cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
+cursor = cnxn.cursor()
+
+cursor.execute("SELECT @@version;")
+row = cursor.fetchone()
+while row:
+    print(row[0])
+    row = cursor.fetchone()
+cursor = cnxn.cursor()
+
+#------------------------------------------------------------------------------------------------------------------
+#----------1092 因有成績 所以才從 thuir_studscore ------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+query1 = "SELECT * FROM *****_******** ;"
+df_1 = pd.read_sql(query1, cnxn)
+df_1['學年期']= df_1['SETYEAR'].map(str)+df_1['SETTERM'].map(str)
+df_1_篩選學年期 = df_1[df_1['學年期'].isin(['109.02'])]
+df_1_篩選學年期 ['學年期'] = df_1_篩選學年期 ['學年期'].replace({'109.02':'1092'})
+
+query2 = "SELECT * FROM *******_******_******* ;"
+df_2 = pd.read_sql(query2, cnxn)
+
+df_merge = pd.merge(df_1_篩選學年期, df_2, left_on='STUD_NO', right_on='encrypt_stud_no', how='left')
+df_merge_篩選課程 = df_merge[df_merge['CURR_CODE'].isin(['2901','2902','2903','2904','2905','2906','2907','2908'])]
+
+#學系更改
+df_merge_篩選課程['學系(不分組)'] = df_merge_篩選課程['MAJR_FULL_NAME'].replace({'資訊工程學系軟體工程組':'資訊工程學系',
+                                                                                            '資訊工程學系資電工程組':'資訊工程學系',
+                                                                                            '資訊工程學系數位創意組':'資訊工程學系',
+                                                                                            '電機工程學系IC設計與無線通訊組':'電機工程學系',
+                                                                                            '生命科學系生物醫學組':'生命科學系',
+                                                                                            '電機工程學系奈米電子與能源技術組':'電機工程學系',
+                                                                                            '化學系化學生物組':'化學系',
+                                                                                            '生命科學系生態暨生物多樣性組':'生命科學系',
+                                                                                            '化學系化學組':'化學系',
+                                                                                            '政治學系政治理論組':'政治學系',
+                                                                                            '經濟學系一般經濟組':'經濟學系',
+                                                                                            '應用物理學系材料及奈米科技組':'應用物理學系',
+                                                                                            '資訊工程學系在職專班高階資訊經營與創業組':'資訊工程學系',
+                                                                                            '應用物理學系光電組':'應用物理學系',
+                                                                                            '資訊工程學系在職專班大數據物聯網應用組':'資訊工程學系',
+                                                                                            '外國語文學系英語教學組':'外國語文學系',
+                                                                                            '工業工程與經營資訊學系高階醫務工程與管理在職專班':'工業工程與經營資訊學系',
+                                                                                            '政治學系國際關係組':'政治學系',
+                                                                                            '經濟學系產業經濟組':'經濟學系',
+                                                                                            '景觀學系在職專班':'景觀學系',
+                                                                                            '工業設計學系在職專班':'工業設計學系',
+                                                                                            '食品科學系食品科技組':'食品科學系',
+                                                                                            '資訊工程學系在職專班':'資訊工程學系',
+                                                                                            })
+df_merge_篩選課程 = df_merge_篩選課程[['學年期', 'TYPE_NAME', 'COLLEGE', '學系(不分組)', 'GRADE', 'original_stud_no', 'CURR_CODE', 'COUR_CNAME']]
+df_merge_篩選課程.rename(columns={'學年期':'學年期', 'TYPE_NAME':'學制', 'COLLEGE':'學院', '學系(不分組)':'學系', 'GRADE':'年級', 'original_stud_no':'學號', 'CURR_CODE':'選課代碼', 'COUR_CNAME':'課程名稱'}, inplace = True)
+
+output = df_merge_篩選課程.to_excel(r'C:\Users\User\PycharmProjects\pythonProject4\雲創學院(予珍)\output\1092選修課名單.xlsx')
+
+#------------------------------------------------------------------------------------------------------------------
+#----------1101 因未成績 所以才從 選課紀錄抓 -------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
+#選課紀錄
+query3 = "SELECT * FROM *****_******** ;"
+df_3 = pd.read_sql(query3, cnxn)
+df_3['學年期']= df_3['SETYEAR'].map(str)+df_3['SETTERM'].map(str)
+df_3_篩選學年期 = df_3[df_3['學年期'].isin(['110.01.0'])]
+df_3_篩選學年期 ['學年期'] = df_3_篩選學年期 ['學年期'].replace({'110.01.0':'1101'})
+
+df_merge2 = pd.merge(df_3_篩選學年期, df_2, left_on='STUD_NO', right_on='encrypt_stud_no', how='left')
+df_merge2_篩選課程 = df_merge2[df_merge2['CURR_CODE'].isin(['2901','2902','2903','2904','2905','2906','2907','2908'])]
+
+#學系更改
+df_merge2_篩選課程['學系(不分組)'] = df_merge2_篩選課程['MAJR_FULL_NAME'].replace({'資訊工程學系軟體工程組':'資訊工程學系',
+                                                                                            '資訊工程學系資電工程組':'資訊工程學系',
+                                                                                            '資訊工程學系數位創意組':'資訊工程學系',
+                                                                                            '電機工程學系IC設計與無線通訊組':'電機工程學系',
+                                                                                            '生命科學系生物醫學組':'生命科學系',
+                                                                                            '電機工程學系奈米電子與能源技術組':'電機工程學系',
+                                                                                            '化學系化學生物組':'化學系',
+                                                                                            '生命科學系生態暨生物多樣性組':'生命科學系',
+                                                                                            '化學系化學組':'化學系',
+                                                                                            '政治學系政治理論組':'政治學系',
+                                                                                            '經濟學系一般經濟組':'經濟學系',
+                                                                                            '應用物理學系材料及奈米科技組':'應用物理學系',
+                                                                                            '資訊工程學系在職專班高階資訊經營與創業組':'資訊工程學系',
+                                                                                            '應用物理學系光電組':'應用物理學系',
+                                                                                            '資訊工程學系在職專班大數據物聯網應用組':'資訊工程學系',
+                                                                                            '外國語文學系英語教學組':'外國語文學系',
+                                                                                            '工業工程與經營資訊學系高階醫務工程與管理在職專班':'工業工程與經營資訊學系',
+                                                                                            '政治學系國際關係組':'政治學系',
+                                                                                            '經濟學系產業經濟組':'經濟學系',
+                                                                                            '景觀學系在職專班':'景觀學系',
+                                                                                            '工業設計學系在職專班':'工業設計學系',
+                                                                                            '食品科學系食品科技組':'食品科學系',
+                                                                                            '資訊工程學系在職專班':'資訊工程學系',
+                                                                                            })
+
+#開課資料
+query4 = "SELECT * FROM *****_******** ;"
+df_4 = pd.read_sql(query4, cnxn)
+df_4['學年期'] = df_4['SETYEAR'].map(str)+df_4['SETTERM'].map(str)
+df_4 = df_4[df_4['學年期'].isin(['110.01.0'])]
+df_4 = df_4[df_4['CURR_CODE'].isin(['2901','2902','2903','2904','2905','2906','2907','2908'])]
+df_4 = df_4[['CURR_CODE', 'COUR_CNAME']]
+
+df_merge3 = pd.merge(df_merge2_篩選課程, df_4, left_on='CURR_CODE', right_on='CURR_CODE', how='left')
+
+df_merge3 = df_merge3[['學年期', 'TYPE_NAME', 'COLLEGE', '學系(不分組)', 'GRADE', 'original_stud_no', 'CURR_CODE', 'COUR_CNAME']]
+df_merge3.rename(columns={'學年期':'學年期', 'TYPE_NAME':'學制', 'COLLEGE':'學院', '學系(不分組)':'學系', 'GRADE':'年級', 'original_stud_no':'學號', 'CURR_CODE':'選課代碼', 'COUR_CNAME':'課程名稱'}, inplace = True)
+
+output2 = df_merge3.to_excel(r'C:\Users\User\PycharmProjects\pythonProject4\雲創學院(予珍)\output\1101選修課名單.xlsx')
+
+
+
