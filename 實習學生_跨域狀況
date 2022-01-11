@@ -1,0 +1,244 @@
+import sys
+sys.modules[__name__].__dict__.clear()
+
+import pandas as pd
+import numpy as np
+
+import pyodbc
+# Some other example server values are
+# server = 'localhost\sqlexpress' # for a named instance
+# server = 'myserver,port' # to specify an alternate port
+
+server = '---.---.--.--'
+database = '-----'
+username = '-----'
+password = '-----'
+cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
+cursor = cnxn.cursor()
+
+cursor.execute("SELECT @@version;")
+row = cursor.fetchone()
+while row:
+    print(row[0])
+    row = cursor.fetchone()
+cursor = cnxn.cursor()
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#-----------最後版本---------------------------------------------------------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+df_1072_1091 = pd.read_excel(r'C:\Users\User\PycharmProjects\pythonProject4\教發中心\實習跨域分析\原始資料\回覆__實習生分析所需相關資料\小蘭資料合併.xlsx', sheet_name = "合併檔1072-1091")
+df_行業對應學系 = pd.read_excel(r'C:\Users\User\PycharmProjects\pythonProject4\教發中心\實習跨域分析\原始資料\107-109系所領域樞紐(最終整理).xlsx', sheet_name = "最終表")
+
+df_1072_1091_的1072併107學系 = df_1072_1091[df_1072_1091['學年期'].isin([1072])]
+df_1072_1091_的1081併108學系 = df_1072_1091[df_1072_1091['學年期'].isin([1081])]
+df_1072_1091_的1082併108學系 = df_1072_1091[df_1072_1091['學年期'].isin([1082])]
+df_1072_1091_的1091併109學系 = df_1072_1091[df_1072_1091['學年期'].isin([1091])]
+
+
+#----------實習行業與學生學系是否有跨域----------------------------------------------------------------------------------------------------------------------------------------------
+df_1072_1091_的1072併107學系_merge行業別學系 = pd.merge(df_1072_1091_的1072併107學系, df_行業對應學系[['107行業別', '107學系2']], left_on='行業別2', right_on='107行業別', how='inner')
+df_1072_1091_的1072併107學系_merge行業別學系 = df_1072_1091_的1072併107學系_merge行業別學系[df_1072_1091_的1072併107學系_merge行業別學系['107學系2'].notna()]
+zipped = zip(df_1072_1091_的1072併107學系_merge行業別學系['學系(全名)'], df_1072_1091_的1072併107學系_merge行業別學系['107學系2'])
+df_1072_1091_的1072併107學系_merge行業別學系['有無跨域'] = np.array([set(a.split(',')) & set(b.split(',')) for a, b in zipped]).astype(bool).astype(int)
+
+df_1072_1091_的1081併108學系_merge行業別學系 = pd.merge(df_1072_1091_的1081併108學系, df_行業對應學系[['108行業別', '108學系2']], left_on='行業別2', right_on='108行業別', how='inner')
+df_1072_1091_的1081併108學系_merge行業別學系 = df_1072_1091_的1081併108學系_merge行業別學系[df_1072_1091_的1081併108學系_merge行業別學系['108學系2'].notna()]
+zipped2 = zip(df_1072_1091_的1081併108學系_merge行業別學系['學系(全名)'], df_1072_1091_的1081併108學系_merge行業別學系['108學系2'])
+df_1072_1091_的1081併108學系_merge行業別學系['有無跨域'] = np.array([set(a.split(',')) & set(b.split(',')) for a, b in zipped2]).astype(bool).astype(int)
+
+df_1072_1091_的1082併108學系_merge行業別學系 = pd.merge(df_1072_1091_的1082併108學系, df_行業對應學系[['108行業別', '108學系2']], left_on='行業別2', right_on='108行業別', how='left')
+df_1072_1091_的1082併108學系_merge行業別學系 = df_1072_1091_的1082併108學系_merge行業別學系[df_1072_1091_的1082併108學系_merge行業別學系['108學系2'].notna()]
+zipped3 = zip(df_1072_1091_的1082併108學系_merge行業別學系['學系(全名)'], df_1072_1091_的1082併108學系_merge行業別學系['108學系2'])
+df_1072_1091_的1082併108學系_merge行業別學系['有無跨域'] = np.array([set(a.split(',')) & set(b.split(',')) for a, b in zipped3]).astype(bool).astype(int)
+
+df_1072_1091_的1091併109學系_merge行業別學系 = pd.merge(df_1072_1091_的1091併109學系, df_行業對應學系[['109行業別', '109學系2']], left_on='行業別2', right_on='109行業別', how='inner')
+df_1072_1091_的1091併109學系_merge行業別學系 = df_1072_1091_的1091併109學系_merge行業別學系[df_1072_1091_的1091併109學系_merge行業別學系['109學系2'].notna()]
+zipped4 = zip(df_1072_1091_的1091併109學系_merge行業別學系['學系(全名)'], df_1072_1091_的1091併109學系_merge行業別學系['109學系2'])
+df_1072_1091_的1091併109學系_merge行業別學系['有無跨域'] = np.array([set(a.split(',')) & set(b.split(',')) for a, b in zipped4]).astype(bool).astype(int)
+
+
+#----------實習學生-輔系雙主修----------------------------------------------------------------------------------------------------------------------------------------------------------------
+query3 = "SELECT * FROM *****_**_*********  ;"
+df_thuir_s9_SecDegree = pd.read_sql(query3, cnxn)
+df_thuir_s9_SecDegree.rename(columns={'secd_year':'取得學年', 'secd_term':'取得學期', 'stud_no':'學號', 'secd_div':'類型(輔系/雙主修)', 'secd_college':'申請輔系雙修學院', 'secd_majr_no':'申請輔系雙修學系代碼 ', 'secd_majr_full_name':'申請輔系雙修學系', 'secd_status':'完成+申請中+取消'}, inplace = True)
+
+
+df_1072_1091_的1072併107學系_merge行業別學系_merge學號= pd.merge(df_1072_1091_的1072併107學系_merge行業別學系, df_number_mapping, left_on='學號', right_on='original_stud_no', how='left')
+df_1072_1091_的1072併107學系_merge行業別學系_merge學號_輔系雙修 = pd.merge(df_1072_1091_的1072併107學系_merge行業別學系_merge學號, df_thuir_s9_SecDegree, left_on='encrypt_stud_no', right_on='學號', how='left')
+
+df_1072_1091_的1081併108學系_merge行業別學系_merge學號= pd.merge(df_1072_1091_的1081併108學系_merge行業別學系, df_number_mapping, left_on='學號', right_on='original_stud_no', how='left')
+df_1072_1091_的1081併108學系_merge行業別學系_merge學號_輔系雙修 = pd.merge(df_1072_1091_的1081併108學系_merge行業別學系_merge學號, df_thuir_s9_SecDegree, left_on='encrypt_stud_no', right_on='學號', how='left')
+
+df_1072_1091_的1082併108學系_merge行業別學系_merge學號= pd.merge(df_1072_1091_的1082併108學系_merge行業別學系, df_number_mapping, left_on='學號', right_on='original_stud_no', how='left')
+df_1072_1091_的1082併108學系_merge行業別學系_merge學號_輔系雙修 = pd.merge(df_1072_1091_的1082併108學系_merge行業別學系_merge學號, df_thuir_s9_SecDegree, left_on='encrypt_stud_no', right_on='學號', how='left')
+
+df_1072_1091_的1091併109學系_merge行業別學系_merge學號= pd.merge(df_1072_1091_的1091併109學系_merge行業別學系, df_number_mapping, left_on='學號', right_on='original_stud_no', how='left')
+df_1072_1091_的1091併109學系_merge行業別學系_merge學號_輔系雙修 = pd.merge(df_1072_1091_的1091併109學系_merge行業別學系_merge學號, df_thuir_s9_SecDegree, left_on='encrypt_stud_no', right_on='學號', how='left')
+
+
+df_108 = pd.concat([df_1072_1091_的1072併107學系_merge行業別學系_merge學號_輔系雙修, df_1072_1091_的1081併108學系_merge行業別學系_merge學號_輔系雙修], axis = 0)
+df_109 = pd.concat([df_1072_1091_的1082併108學系_merge行業別學系_merge學號_輔系雙修, df_1072_1091_的1091併109學系_merge行業別學系_merge學號_輔系雙修], axis = 0)
+
+writer = pd.ExcelWriter(r'C:\Users\User\PycharmProjects\pythonProject4\教發中心\實習跨域分析\最終結果2\深耕的108-109實習output資料.xlsx', engine = 'xlsxwriter')
+df_108.to_excel(writer, sheet_name = '108')
+df_109.to_excel(writer, sheet_name = '109')
+writer.save()
+writer.close()
+
+
+##----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+##-------------------------------- 實習 算跨域課程比例 (跨域涵蓋率) -------------------------------------------------------------------------------------------------------------------
+##----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+data_跨域 = pd.read_excel(r'D:\Users\Felix\Desktop\東海IR\IR資料與分析\主要議題與分析\高教深耕\跨域_學生個人\整理\當學年個人跨域佔比資料1101022更新(for實習計算跨域課程用).xlsx', sheet_name = "當學年個人跨域佔比資料1101022更新")
+
+data_實習107_1062與1071 = pd.read_excel(r'C:\Users\User\PycharmProjects\pythonProject4\教發中心\實習跨域分析\原始資料\回覆__實習生分析所需相關資料\量18-107年參與專業實習之學生數.xlsx', sheet_name = "107年度")
+data_實習108_1072與1081 = pd.read_excel(r'C:\Users\User\PycharmProjects\pythonProject4\教發中心\實習跨域分析\原始資料\回覆__實習生分析所需相關資料\量18-108年參與專業實習之學生數.xlsx', sheet_name = "108年度")
+data_實習109_1082與1091 = pd.read_excel(r'C:\Users\User\PycharmProjects\pythonProject4\教發中心\實習跨域分析\原始資料\回覆__實習生分析所需相關資料\109年填報共同52-專業實習學生人數名單(含合併).xlsx', sheet_name = "109合併")
+data_實習110_1092 = pd.read_excel(r'C:\Users\User\PycharmProjects\pythonProject4\教發中心\實習跨域分析\原始資料\回覆__實習生分析所需相關資料\共同52-專業實習學生人數名單(1092).xlsx', sheet_name = "1092校外實習學生修課名單")
+
+data_實習110_1092['學年期'] = data_實習110_1092['學年'].map(str)+data_實習110_1092['學期'].map(str)
+
+#轉真學號
+query = "SELECT * FROM *******_*****_*******  ;"
+df_number_mapping = pd.read_sql(query, cnxn)
+
+data_實習107_1062與1071= pd.merge(data_實習107_1062與1071, df_number_mapping, left_on='學號', right_on='original_stud_no', how='left')
+data_實習108_1072與1081= pd.merge(data_實習108_1072與1081, df_number_mapping, left_on='學號', right_on='original_stud_no', how='left')
+data_實習109_1082與1091= pd.merge(data_實習109_1082與1091, df_number_mapping, left_on='學生學號', right_on='original_stud_no', how='left')
+data_實習110_1092= pd.merge(data_實習110_1092, df_number_mapping, left_on='學號', right_on='original_stud_no', how='left')
+
+data_實習107_1062與1071['setyear-stud_no'] = data_實習107_1062與1071['學年'].map(str)+"-"+data_實習107_1062與1071['encrypt_stud_no']
+data_實習108_1072與1081['setyear-stud_no'] = data_實習108_1072與1081['學年'].map(str)+"-"+data_實習108_1072與1081['encrypt_stud_no'].map(str)
+data_實習109_1082與1091['setyear-stud_no'] = data_實習109_1082與1091['學年度'].map(str)+"-"+data_實習109_1082與1091['encrypt_stud_no']
+data_實習110_1092['setyear-stud_no'] = data_實習110_1092['學年'].map(str)+"-"+data_實習110_1092['encrypt_stud_no']
+
+
+#----------跨域課程----------------------------------------------------------------------------------------------------------------------------------------------------------------
+data_跨域_aspect1為跨域課程 = data_跨域[data_跨域['aspect1'] == '跨域課程']
+
+data_跨域_aspect1為跨域課程1062與1071 = data_跨域_aspect1為跨域課程[data_跨域_aspect1為跨域課程['setyear'].isin([106,107])]
+data_跨域_aspect1為跨域課程1072與1081 = data_跨域_aspect1為跨域課程[data_跨域_aspect1為跨域課程['setyear'].isin([107,108])]
+data_跨域_aspect1為跨域課程1082與1091 = data_跨域_aspect1為跨域課程[data_跨域_aspect1為跨域課程['setyear'].isin([108,109])]
+data_跨域_aspect1為跨域課程1092 = data_跨域_aspect1為跨域課程[data_跨域_aspect1為跨域課程['setyear'].isin([109])]
+
+data_跨域_aspect1為跨域課程1062與1071['setyear-stud_no'] = data_跨域_aspect1為跨域課程1062與1071['setyear'].map(str)+"-"+data_跨域_aspect1為跨域課程1062與1071['stud_no']
+data_跨域_aspect1為跨域課程1072與1081['setyear-stud_no'] = data_跨域_aspect1為跨域課程1072與1081['setyear'].map(str)+"-"+data_跨域_aspect1為跨域課程1072與1081['stud_no']
+data_跨域_aspect1為跨域課程1082與1091['setyear-stud_no'] = data_跨域_aspect1為跨域課程1082與1091['setyear'].map(str)+"-"+data_跨域_aspect1為跨域課程1082與1091['stud_no']
+data_跨域_aspect1為跨域課程1092['setyear-stud_no'] = data_跨域_aspect1為跨域課程1092['setyear'].map(str)+"-"+data_跨域_aspect1為跨域課程1092['stud_no']
+
+data_實習107_1062與1071_merge跨域課程 = pd.merge(data_實習107_1062與1071, data_跨域_aspect1為跨域課程1062與1071, left_on='setyear-stud_no', right_on='setyear-stud_no', how='left')
+data_實習108_1072與1081_merge跨域課程 = pd.merge(data_實習108_1072與1081, data_跨域_aspect1為跨域課程1072與1081, left_on='setyear-stud_no', right_on='setyear-stud_no', how='left')
+data_實習109_1082與1091_merge跨域課程 = pd.merge(data_實習109_1082與1091, data_跨域_aspect1為跨域課程1082與1091, left_on='setyear-stud_no', right_on='setyear-stud_no', how='left')
+data_實習110_1092_merge跨域課程 = pd.merge(data_實習110_1092, data_跨域_aspect1為跨域課程1092, left_on='setyear-stud_no', right_on='setyear-stud_no', how='left')
+
+data_實習107_1062與1071_merge跨域課程['是否有跨域課程'] = (data_實習107_1062與1071_merge跨域課程['encrypt_stud_no'] == data_實習107_1062與1071_merge跨域課程['stud_no'])
+data_實習108_1072與1081_merge跨域課程['是否有跨域課程'] = (data_實習108_1072與1081_merge跨域課程['encrypt_stud_no'] == data_實習108_1072與1081_merge跨域課程['stud_no'])
+data_實習109_1082與1091_merge跨域課程['是否有跨域課程'] = (data_實習109_1082與1091_merge跨域課程['encrypt_stud_no'] == data_實習109_1082與1091_merge跨域課程['stud_no'])
+data_實習110_1092_merge跨域課程['是否有跨域課程'] = (data_實習110_1092_merge跨域課程['encrypt_stud_no'] == data_實習110_1092_merge跨域課程['stud_no'])
+
+##----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+##------------------------- 實習 算跨域課程比例 (跨系修課  學系課程/其他課程) ----------------------------------------------------------------------------------------------------------
+##----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+data_跨域 = pd.read_excel(r'D:\Users\Felix\Desktop\東海IR\IR資料與分析\主要議題與分析\ir分析\院OKR_跨域\學生跨系修課狀況_分旗標1101022更新.xlsx', sheet_name = "學生跨系修課狀況_分旗標1101022更新")
+
+data_實習107_1062與1071 = pd.read_excel(r'C:\Users\User\PycharmProjects\pythonProject4\教發中心\實習跨域分析\原始資料\回覆__實習生分析所需相關資料\量18-107年參與專業實習之學生數.xlsx', sheet_name = "107年度")
+data_實習108_1072與1081 = pd.read_excel(r'C:\Users\User\PycharmProjects\pythonProject4\教發中心\實習跨域分析\原始資料\回覆__實習生分析所需相關資料\量18-108年參與專業實習之學生數.xlsx', sheet_name = "108年度")
+data_實習109_1082與1091 = pd.read_excel(r'C:\Users\User\PycharmProjects\pythonProject4\教發中心\實習跨域分析\原始資料\回覆__實習生分析所需相關資料\109年填報共同52-專業實習學生人數名單(含合併).xlsx', sheet_name = "109合併")
+data_實習110_1092 = pd.read_excel(r'C:\Users\User\PycharmProjects\pythonProject4\教發中心\實習跨域分析\原始資料\回覆__實習生分析所需相關資料\共同52-專業實習學生人數名單(1092).xlsx', sheet_name = "1092校外實習學生修課名單")
+
+data_實習110_1092['學年期'] = data_實習110_1092['學年'].map(str)+data_實習110_1092['學期'].map(str)
+
+#轉真學號
+query = "SELECT * FROM *******_******_*******  ;"
+df_number_mapping = pd.read_sql(query, cnxn)
+
+data_實習107_1062與1071= pd.merge(data_實習107_1062與1071, df_number_mapping, left_on='學號', right_on='original_stud_no', how='left')
+data_實習108_1072與1081= pd.merge(data_實習108_1072與1081, df_number_mapping, left_on='學號', right_on='original_stud_no', how='left')
+data_實習109_1082與1091= pd.merge(data_實習109_1082與1091, df_number_mapping, left_on='學生學號', right_on='original_stud_no', how='left')
+data_實習110_1092= pd.merge(data_實習110_1092, df_number_mapping, left_on='學號', right_on='original_stud_no', how='left')
+
+data_實習107_1062與1071['學年期-stud_no'] = data_實習107_1062與1071['學年期'].map(str)+"-"+data_實習107_1062與1071['encrypt_stud_no']
+data_實習108_1072與1081['學年期-stud_no'] = data_實習108_1072與1081['學年期'].map(str)+"-"+data_實習108_1072與1081['encrypt_stud_no'].map(str)
+data_實習109_1082與1091['學年期-stud_no'] = data_實習109_1082與1091['學年期'].map(str)+"-"+data_實習109_1082與1091['encrypt_stud_no']
+data_實習110_1092['學年期-stud_no'] = data_實習110_1092['學年期'].map(str)+"-"+data_實習110_1092['encrypt_stud_no']
+
+#----------跨域課程:為 學系課程 或 其他課程 或 學系+其他課程(旗標指挑：大學院課程/院整合式/學分學程/課程模組/創新學院-樂齡/創新學院-雲創/微學分課程/AI計畫L2)------------------------------
+#data_跨域= data_跨域[data_跨域['majr2_type_name'] == '學系課程']
+#data_跨域= data_跨域[data_跨域['majr2_type_name'] == '其他課程']
+data_跨域= data_跨域[data_跨域['curr_attr'].isin(['大學院課程院整合式','學分學程','課程模組','創新學院-樂齡','創新學院-雲創','微學分課程','AI計畫L2'])]
+
+data_跨域_學系跨域課程1062與1071 = data_跨域[data_跨域['sym'].isin([1062,1071])]
+data_跨域_學系跨域課程1072與1081 = data_跨域[data_跨域['sym'].isin([1072,1081])]
+data_跨域_學系跨域課程1082與1091 = data_跨域[data_跨域['sym'].isin([1082,1091])]
+data_跨域_學系跨域課程1092 = data_跨域[data_跨域['sym'].isin([1092])]
+
+data_跨域_學系跨域課程1062與1071['學年期-stud_no'] = data_跨域_學系跨域課程1062與1071['sym'].map(str)+"-"+data_跨域_學系跨域課程1062與1071['stud_no']
+data_跨域_學系跨域課程1072與1081['學年期-stud_no'] = data_跨域_學系跨域課程1072與1081['sym'].map(str)+"-"+data_跨域_學系跨域課程1072與1081['stud_no']
+data_跨域_學系跨域課程1082與1091['學年期-stud_no'] = data_跨域_學系跨域課程1082與1091['sym'].map(str)+"-"+data_跨域_學系跨域課程1082與1091['stud_no']
+data_跨域_學系跨域課程1092['學年期-stud_no'] = data_跨域_學系跨域課程1092['sym'].map(str)+"-"+data_跨域_學系跨域課程1092['stud_no']
+
+data_跨域_學系跨域課程1062與1071_移除重複 = data_跨域_學系跨域課程1062與1071.drop_duplicates(subset=['學年期-stud_no'], keep='last')
+data_跨域_學系跨域課程1072與1081_移除重複 = data_跨域_學系跨域課程1072與1081.drop_duplicates(subset=['學年期-stud_no'], keep='last')
+data_跨域_學系跨域課程1082與1091_移除重複 = data_跨域_學系跨域課程1082與1091.drop_duplicates(subset=['學年期-stud_no'], keep='last')
+data_跨域_學系跨域課程1092_移除重複 = data_跨域_學系跨域課程1092.drop_duplicates(subset=['學年期-stud_no'], keep='last')
+
+
+data_實習107_1062與1071_merge跨域課程 = pd.merge(data_實習107_1062與1071, data_跨域_學系跨域課程1062與1071_移除重複, left_on='學年期-stud_no', right_on='學年期-stud_no', how='left')
+data_實習108_1072與1081_merge跨域課程 = pd.merge(data_實習108_1072與1081, data_跨域_學系跨域課程1072與1081_移除重複, left_on='學年期-stud_no', right_on='學年期-stud_no', how='left')
+data_實習109_1082與1091_merge跨域課程 = pd.merge(data_實習109_1082與1091, data_跨域_學系跨域課程1082與1091_移除重複, left_on='學年期-stud_no', right_on='學年期-stud_no', how='left')
+data_實習110_1092_merge跨域課程 = pd.merge(data_實習110_1092, data_跨域_學系跨域課程1092_移除重複, left_on='學年期-stud_no', right_on='學年期-stud_no', how='left')
+
+
+data_實習107_1062與1071_merge跨域課程['是否有跨域課程'] = (data_實習107_1062與1071_merge跨域課程['encrypt_stud_no'] == data_實習107_1062與1071_merge跨域課程['stud_no'])
+data_實習108_1072與1081_merge跨域課程['是否有跨域課程'] = (data_實習108_1072與1081_merge跨域課程['encrypt_stud_no'] == data_實習108_1072與1081_merge跨域課程['stud_no'])
+data_實習109_1082與1091_merge跨域課程['是否有跨域課程'] = (data_實習109_1082與1091_merge跨域課程['encrypt_stud_no'] == data_實習109_1082與1091_merge跨域課程['stud_no'])
+data_實習110_1092_merge跨域課程['是否有跨域課程'] = (data_實習110_1092_merge跨域課程['encrypt_stud_no'] == data_實習110_1092_merge跨域課程['stud_no'])
+
+#----------107-110資料合併------------------------------------------------------------------------------------------------------------------------------------------------------
+data_實習107_1062與1071_merge跨域課程['年度'] =107
+data_實習108_1072與1081_merge跨域課程['年度'] =108
+data_實習109_1082與1091_merge跨域課程['年度'] =109
+data_實習110_1092_merge跨域課程['年度'] =110
+df_107實習 = data_實習107_1062與1071_merge跨域課程[['年度','學年', '學期', '學年期', '系級', '學系(全名)', '學號', '姓名',  '課程名稱','encrypt_stud_no', '學年期-stud_no', '是否有跨域課程']]
+df_108實習 = data_實習108_1072與1081_merge跨域課程[['年度','學年', '學期', '學年期', '系級', '學系(全名)', '學號', '姓名',  '課程名稱','encrypt_stud_no', '學年期-stud_no', '是否有跨域課程']]
+df_109實習 = data_實習109_1082與1091_merge跨域課程[['年度','學年度', '學期', '學年期', '學生系級', '學系(全名)', '學生學號', '學生姓名',  '課程名稱','encrypt_stud_no', '學年期-stud_no', '是否有跨域課程']]
+df_110實習 = data_實習110_1092_merge跨域課程[['年度','學年', '學期', '學年期', '學生年級', '學生隸屬學系', '學號', '學生姓名',  '課程名稱','encrypt_stud_no', '學年期-stud_no', '是否有跨域課程']]
+df_109實習.rename(columns={'學年度':'學年', '學生系級':'系級', '學生學號':'學號', '學生姓名':'姓名'}, inplace = True)
+df_110實習.rename(columns={'學生年級':'系級', '學生系級':'系級', '學生隸屬學系':'學系(全名)', '學生姓名':'姓名'}, inplace = True)
+df_107到110年 = pd.concat([df_107實習, df_108實習, df_109實習, df_110實習], axis = 0)
+
+df_107到110年['學系(全名)'] = df_107到110年['學系(全名)'].replace({'經濟系':'經濟學系','資工系數創組':'資訊工程學系','資工系軟工組':'資訊工程學系','工設系':'工業設計學系','資工系資電組':'資訊工程學系',
+                                                       '國際學院國際經營管理學位學程':'國際經營管理學位學程'})
+
+df_院系對照 = pd.read_excel(r'C:\Users\User\PycharmProjects\pythonProject4\院系名稱對照.xlsx')
+df_院系對照 = df_院系對照[['學系(分系)', '學院']]
+
+df_107到110年_merge學院 = pd.merge(df_107到110年, df_院系對照, left_on='學系(全名)', right_on = '學系(分系)', how = 'left')
+df_107到110年_merge學院 = df_107到110年_merge學院[['學年', '學期', '學年期', '系級', '學系(全名)', '學號', '姓名', '課程名稱',
+       'encrypt_stud_no', '學年期-stud_no', '是否有跨域課程', '年度', '學院']]
+
+#輔系雙主修
+query22 = "SELECT * FROM *****_**_*********  ;"
+df_thuir_s9_SecDegree = pd.read_sql(query22, cnxn)
+df_thuir_s9_SecDegree.rename(columns={'secd_year':'取得學年', 'secd_term':'取得學期', 'secd_div':'類型(輔系/雙主修)', 'secd_college':'申請輔系雙修學院', 'secd_majr_no':'申請輔系雙修學系代碼 ', 'secd_majr_full_name':'申請輔系雙修學系', 'secd_status':'完成+申請中+取消'}, inplace = True)
+
+df_107到110年_merge學院_merge輔系雙修 = pd.merge(df_107到110年_merge學院, df_thuir_s9_SecDegree, left_on= 'encrypt_stud_no', right_on='stud_no', how= 'left')
+
+df_107到110年_merge學院_merge輔系雙修['類型(輔系/雙主修)'].replace(np.nan, '無', inplace = True)
+df_107到110年_merge學院_merge輔系雙修['是否有跨域課程'] = df_107到110年_merge學院_merge輔系雙修['是否有跨域課程'].replace({True:'有',False:'無'})
+
+df_107到110年_merge學院_merge輔系雙修['有跨域'] = df_107到110年_merge學院_merge輔系雙修['是否有跨域課程'].str.contains('有').astype(int)
+df_107到110年_merge學院_merge輔系雙修['輔系'] = df_107到110年_merge學院_merge輔系雙修['類型(輔系/雙主修)'].str.contains('輔系').astype(int)
+df_107到110年_merge學院_merge輔系雙修['雙主修'] = df_107到110年_merge學院_merge輔系雙修['類型(輔系/雙主修)'].str.contains('雙主修').astype(int)
+df_107到110年_merge學院_merge輔系雙修['總和'] = df_107到110年_merge學院_merge輔系雙修.iloc[:,25:28].sum(axis = 1)
+
+
+#----------輸出資料至tableau做圖------------------------------------------------------------------------------------------------------------------------------------------------------
+writer2 = pd.ExcelWriter(r'C:\Users\User\PycharmProjects\pythonProject4\教發中心\實習跨域分析\最終結果2\深耕107-110年實習-跨域課程(總表有輔系雙修與學院).xlsx', engine = 'xlsxwriter')
+data_實習107_1062與1071_merge跨域課程.to_excel(writer2, sheet_name = '107')
+data_實習108_1072與1081_merge跨域課程.to_excel(writer2, sheet_name = '108')
+data_實習109_1082與1091_merge跨域課程.to_excel(writer2, sheet_name = '109')
+data_實習110_1092_merge跨域課程.to_excel(writer2, sheet_name = '110')
+df_107到110年_merge學院_merge輔系雙修.to_excel(writer2, sheet_name = '107-110')
+writer2.save()
+writer2.close()
