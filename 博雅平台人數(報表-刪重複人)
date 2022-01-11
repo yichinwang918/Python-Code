@@ -1,0 +1,73 @@
+# Python-Code
+
+import sys
+sys.modules[__name__].__dict__.clear()
+
+import pandas as pd
+import pyodbc
+# Some other example server values are
+# server = 'localhost\sqlexpress' # for a named instance
+# server = 'myserver,port' # to specify an alternate port
+
+server = '---.---.--.--'
+database = '-----'
+username = '-----'
+password = '-----'
+cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
+cursor = cnxn.cursor()
+
+cursor.execute("SELECT @@version;")
+row = cursor.fetchone()
+while row:
+    print(row[0])
+    row = cursor.fetchone()
+cursor = cnxn.cursor()
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------
+#轉真學號
+query2 = "SELECT * FROM *******_******_*******  ;"
+df_number_mapping = pd.read_sql(query2, cnxn)
+
+#student_information
+query3 = "SELECT * FROM *******_****  ;"
+df_student_info = pd.read_sql(query3, cnxn)
+df_student_info = df_student_info[['stud_no', 'type_name', 'college_name', 'majr_no', 'majr_full_name', 'grade']]
+
+
+#學務處-博雅學習紀錄(H)
+query1 = "SELECT * FROM  *****_****_****** ;"
+df_poya_stuact = pd.read_sql(query1, cnxn)
+df_poya_stuact['學年期'] = df_poya_stuact['secd_year'].map(str)+df_poya_stuact['secd_term'].map(str)
+df_poya_stuact = df_poya_stuact[df_poya_stuact['學年期'].isin(['109.02.0'])]
+df_poya_stuact = pd.merge(df_poya_stuact, df_number_mapping, left_on='stud_no', right_on='encrypt_stud_no', how='left')
+df_poya_stuact = df_poya_stuact.rename(columns={'original_stud_no':'學號', 'college':'college_name'})
+df_poya_stuact['學年期'] = df_poya_stuact['學年期'].replace({'109.02.0':'1092'})
+df_poya_stuact['grade'] = df_poya_stuact['grade'].replace({1.0:'1', 2.0:'2', 3.0:'3', 4.0:'4', 5.0:'5'})
+df_poya_stuact = df_poya_stuact[['學年期', '學號', 'type_name', 'college_name', 'majr_no', 'majr_full_name', 'grade', 'conf_type']]
+
+#因1101資料有問題故用loading
+df_st_ker_re =pd.read_excel(r'C:\Users\User\PycharmProjects\pythonProject4\學務處-皓文\原始資料\student_kernel_records (1).xlsx')
+df_st_ker_re = pd.merge(df_st_ker_re, df_number_mapping ,left_on= '學號', right_on='original_stud_no')
+df_st_ker_re = df_st_ker_re[['學號', 'encrypt_stud_no']]
+df_st_ker_re_merge_st = pd.merge(df_st_ker_re, df_student_info, left_on='encrypt_stud_no', right_on='stud_no', how='left')
+df_st_ker_re_merge_st['conf_type'] = '活動'
+df_st_ker_re_merge_st['學年期'] = '1101'
+df_st_ker_re_merge_st = df_st_ker_re_merge_st[['學年期', '學號', 'type_name', 'college_name', 'majr_no', 'majr_full_name', 'grade', 'conf_type']]
+
+#1092+1101資料合併
+df_1092_1101 = pd.concat([df_poya_stuact, df_st_ker_re_merge_st])
+
+#1092+1101資料合併後刪除重複學生
+df_1092_1101_刪重複學生 = df_1092_1101['學號'].drop_duplicates(keep='first')
+
+#產出報表
+df_1092_1101_cross = pd.pivot_table(df_1092_1101, index = '學年期', columns='conf_type', values='學號',
+                    aggfunc=lambda x: len(x.unique()), margins=True, margins_name='TOTAL')
+
+
+writer = pd.ExcelWriter(r'C:\Users\User\PycharmProjects\pythonProject4\學務處-皓文\output\1092+1101博雅平台人數.xlsx', engine = 'xlsxwriter')
+df_1092_1101.to_excel(writer, sheet_name = '原始數據')
+df_1092_1101_刪重複學生.to_excel(writer, sheet_name = '刪除重複人數')
+df_1092_1101_cross.to_excel(writer, sheet_name = '報表')
+writer.save()
+writer.close()
