@@ -1,0 +1,199 @@
+import sys
+sys.modules[__name__].__dict__.clear()
+
+import numpy as np
+import pandas as pd
+import pyodbc
+# Some other example server values are
+# server = 'localhost\sqlexpress' # for a named instance
+# server = 'myserver,port' # to specify an alternate port
+
+server = '---.---.--.--'
+database = '-----'
+username = '-----'
+password = '-----'
+cnxn = pyodbc.connect('DRIVER={ODBC Driver 11 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
+cursor = cnxn.cursor()
+
+cursor.execute("SELECT @@version;")
+row = cursor.fetchone()
+while row:
+    print(row[0])
+    row = cursor.fetchone()
+cursor = cnxn.cursor()
+
+
+#------------------------------------------------------------------------------------------------------------------------#
+#----------------------------- 1. 109學年度 專任教師數--------------------------------------------------------------------#
+#------------------------------------------------------------------------------------------------------------------------#
+df_1 = pd.read_excel('管理學院_需求分析\教1-1.專任教師數-以「系(所)」統計_1101015載.xlsx', sheet_name = "Current")
+cross_1 = df_1.groupby(['學院', '學年度']).apply(sum)['專任教師數-教師總數'].unstack()
+
+
+#-----------------------------------------------------------------------------------------------------------------------#
+#----------------------------- 2. 108-110學年度 科技部計畫件數/ 金額------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------------------#
+df_2 = pd.read_excel('管理學院_需求分析\近六年教師研究生等資料.xlsx', sheet_name = "104-109學年度【研究計畫】")
+df_2 = df_2[df_2['研究計畫'] == '科技部計畫']
+cross_2_總金額 = df_2.groupby(['單位', '學年度']).apply(sum)['計畫總金額'].unstack()
+cross_2_件數 = pd.crosstab(df_2['單位'], df_2['學年度'], margins=True)
+
+writer = pd.ExcelWriter('管理學院_需求分析\科技部件數_金額.xlsx', engine = 'xlsxwriter')
+cross_2_總金額.to_excel(writer, sheet_name = '108-109總金額')
+cross_2_件數.to_excel(writer, sheet_name = '108-109件數')
+writer.save()
+writer.close()
+
+
+#----------------------------------------------------------------------------------------------------------------------#
+#------- 3. 107-109學年度(分上下學期) 管院必修、選修課程修課人數(含本開課系所學生、管院非該開課系所學生、外院各系所學生數)------#
+#----------------------------------------------------------------------------------------------------------------------#
+#studscore
+query_thuir_studscore = "SELECT * FROM *****_********* WHERE type_name= '日間學士班';"
+df_thuir_studscore = pd.read_sql(query_thuir_studscore, cnxn)
+
+df_thuir_studscore =df_thuir_studscore[df_thuir_studscore['SETYEAR'].isin([107, 108, 109])]
+df_thuir_studscore =df_thuir_studscore[df_thuir_studscore['CURR_SEL'].isin(['選修', '必修'])]
+df_thuir_studscore =df_thuir_studscore[df_thuir_studscore['MAJR1_NAME'].isin(['企業管理學系', '國際經營與貿易學系', '會計學系', '統計學系', '財務金融學系', '資訊管理學系', '高階經營管理在職專班', '國際企業管理碩士學位學程'])]
+df_thuir_studscore['MAJR_FULL_NAME'] = df_thuir_studscore['MAJR_FULL_NAME'].replace({'化學系化學生物組':'化學系',
+                                                                                 '化學系化學組':'化學系',
+                                                                                 '生命科學系生物醫學組':'生命科學系',
+                                                                                 '生命科學系生態暨生物多樣性組':'生命科學系',
+                                                                                 '政治學系政治理論組':'政治學系',
+                                                                                 '政治學系國際關係組':'政治學系',
+                                                                                 '經濟學系一般經濟組':'經濟學系',
+                                                                                 '經濟學系產業經濟組':'經濟學系',
+                                                                                 '資訊工程學系軟體工程組':'資訊工程學系',
+                                                                                 '資訊工程學系資電工程組':'資訊工程學系',
+                                                                                 '資訊工程學系數位創意組':'資訊工程學系',
+                                                                                 '資訊工程學系在職專班大數據物聯網應用組': '資訊工程學系在職專班',
+                                                                                 '資訊工程學系在職專班高階資訊經營與創業組': '資訊工程學系在職專班',
+                                                                                 '電機工程學系IC設計與無線通訊組':'電機工程學系',
+                                                                                 '電機工程學系奈米電子與能源技術組':'電機工程學系',
+                                                                                 '應用物理學系光電組':'應用物理學系',
+                                                                                 '應用物理學系材料及奈米科技組':'應用物理學系',
+                                                                                 '食品科學系食品工業管理組':'食品科學系'})
+
+df_thuir_studscore_必修 = df_thuir_studscore[df_thuir_studscore['CURR_SEL'].isin(['必修'])]
+df_thuir_studscore_選修 = df_thuir_studscore[df_thuir_studscore['CURR_SEL'].isin(['選修'])]
+
+writer_管院開課資料feat學生修課資料 = pd.ExcelWriter(r'C:\Users\User\PycharmProjects\pythonProject4\管理學院_需求分析\107-109管院開課資料feat學生修課資料.xlsx', engine = 'xlsxwriter')
+df_thuir_studscore.to_excel(writer_管院開課資料feat學生修課資料, sheet_name = '總資料')
+df_thuir_studscore_必修.to_excel(writer_管院開課資料feat學生修課資料, sheet_name = '必修')
+df_thuir_studscore_選修.to_excel(writer_管院開課資料feat學生修課資料, sheet_name = '選修')
+writer_管院開課資料feat學生修課資料.save()
+writer_管院開課資料feat學生修課資料.close()
+
+
+#-----------------必修-原開課系所學生數--------------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------------------------------------------------------
+df_thuir_studscore_必修['原開課系所'] = (df_thuir_studscore_必修['MAJR_FULL_NAME'] == df_thuir_studscore_必修['MAJR1_NAME'])
+df_thuir_studscore_必修_原開課系所 = df_thuir_studscore_必修[df_thuir_studscore_必修['原開課系所'] == True]
+#上學期必修
+df_thuir_studscore_必修_原開課系所_上學期 = df_thuir_studscore_必修_原開課系所[df_thuir_studscore_必修_原開課系所['SETTERM'] =='1']
+df_thuir_studscore_必修_原開課系所_上學期_107 = df_thuir_studscore_必修_原開課系所_上學期[df_thuir_studscore_必修_原開課系所_上學期['SETYEAR'] ==107]
+df_thuir_studscore_必修_原開課系所_上學期_108 = df_thuir_studscore_必修_原開課系所_上學期[df_thuir_studscore_必修_原開課系所_上學期['SETYEAR'] ==108]
+df_thuir_studscore_必修_原開課系所_上學期_109 = df_thuir_studscore_必修_原開課系所_上學期[df_thuir_studscore_必修_原開課系所_上學期['SETYEAR'] ==109]
+df_thuir_studscore_必修_原開課系所_上學期_107 = df_thuir_studscore_必修_原開課系所_上學期_107.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_必修_原開課系所_上學期_108 = df_thuir_studscore_必修_原開課系所_上學期_108.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_必修_原開課系所_上學期_109 = df_thuir_studscore_必修_原開課系所_上學期_109.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_必修_原開課系所_上學期 = pd.concat([df_thuir_studscore_必修_原開課系所_上學期_107,df_thuir_studscore_必修_原開課系所_上學期_108,df_thuir_studscore_必修_原開課系所_上學期_109])
+#下學期必修
+df_thuir_studscore_必修_原開課系所_下學期 = df_thuir_studscore_必修_原開課系所[df_thuir_studscore_必修_原開課系所['SETTERM'] =='2']
+df_thuir_studscore_必修_原開課系所_下學期_107 = df_thuir_studscore_必修_原開課系所_下學期[df_thuir_studscore_必修_原開課系所_下學期['SETYEAR'] ==107]
+df_thuir_studscore_必修_原開課系所_下學期_108 = df_thuir_studscore_必修_原開課系所_下學期[df_thuir_studscore_必修_原開課系所_下學期['SETYEAR'] ==108]
+df_thuir_studscore_必修_原開課系所_下學期_109 = df_thuir_studscore_必修_原開課系所_下學期[df_thuir_studscore_必修_原開課系所_下學期['SETYEAR'] ==109]
+df_thuir_studscore_必修_原開課系所_下學期_107 = df_thuir_studscore_必修_原開課系所_下學期_107.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_必修_原開課系所_下學期_108 = df_thuir_studscore_必修_原開課系所_下學期_108.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_必修_原開課系所_下學期_109 = df_thuir_studscore_必修_原開課系所_下學期_109.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_必修_原開課系所_下學期 = pd.concat([df_thuir_studscore_必修_原開課系所_下學期_107,df_thuir_studscore_必修_原開課系所_下學期_108,df_thuir_studscore_必修_原開課系所_下學期_109])
+
+#-----------------選修-原開課系所學生數--------------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------------------------------------------------------
+df_thuir_studscore_選修['原開課系所'] = (df_thuir_studscore_選修['MAJR_FULL_NAME'] == df_thuir_studscore_選修['MAJR1_NAME'])
+df_thuir_studscore_選修_原開課系所 = df_thuir_studscore_選修[df_thuir_studscore_選修['原開課系所'] == True]
+#上學期選修
+df_thuir_studscore_選修_原開課系所_上學期 = df_thuir_studscore_選修_原開課系所[df_thuir_studscore_選修_原開課系所['SETTERM'] =='1']
+df_thuir_studscore_選修_原開課系所_上學期_107 = df_thuir_studscore_選修_原開課系所_上學期[df_thuir_studscore_選修_原開課系所_上學期['SETYEAR'] ==107]
+df_thuir_studscore_選修_原開課系所_上學期_108 = df_thuir_studscore_選修_原開課系所_上學期[df_thuir_studscore_選修_原開課系所_上學期['SETYEAR'] ==108]
+df_thuir_studscore_選修_原開課系所_上學期_109 = df_thuir_studscore_選修_原開課系所_上學期[df_thuir_studscore_選修_原開課系所_上學期['SETYEAR'] ==109]
+df_thuir_studscore_選修_原開課系所_上學期_107 = df_thuir_studscore_選修_原開課系所_上學期_107.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_選修_原開課系所_上學期_108 = df_thuir_studscore_選修_原開課系所_上學期_108.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_選修_原開課系所_上學期_109 = df_thuir_studscore_選修_原開課系所_上學期_109.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_選修_原開課系所_上學期 = pd.concat([df_thuir_studscore_選修_原開課系所_上學期_107,df_thuir_studscore_選修_原開課系所_上學期_108,df_thuir_studscore_選修_原開課系所_上學期_109])
+#下學期選修
+df_thuir_studscore_選修_原開課系所_下學期 = df_thuir_studscore_選修_原開課系所[df_thuir_studscore_選修_原開課系所['SETTERM'] =='2']
+df_thuir_studscore_選修_原開課系所_下學期_107 = df_thuir_studscore_選修_原開課系所_下學期[df_thuir_studscore_選修_原開課系所_下學期['SETYEAR'] ==107]
+df_thuir_studscore_選修_原開課系所_下學期_108 = df_thuir_studscore_選修_原開課系所_下學期[df_thuir_studscore_選修_原開課系所_下學期['SETYEAR'] ==108]
+df_thuir_studscore_選修_原開課系所_下學期_109 = df_thuir_studscore_選修_原開課系所_下學期[df_thuir_studscore_選修_原開課系所_下學期['SETYEAR'] ==109]
+df_thuir_studscore_選修_原開課系所_下學期_107 = df_thuir_studscore_選修_原開課系所_下學期_107.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_選修_原開課系所_下學期_108 = df_thuir_studscore_選修_原開課系所_下學期_108.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_選修_原開課系所_下學期_109 = df_thuir_studscore_選修_原開課系所_下學期_109.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_選修_原開課系所_下學期 = pd.concat([df_thuir_studscore_選修_原開課系所_下學期_107,df_thuir_studscore_選修_原開課系所_下學期_108,df_thuir_studscore_選修_原開課系所_下學期_109])
+
+writer_管院開課資料feat學生修課資料_人數 = pd.ExcelWriter(r'C:\Users\User\PycharmProjects\pythonProject4\管理學院_需求分析\107-109管院開課資料feat學生修課資料(人數)_原開課系所.xlsx', engine = 'xlsxwriter')
+df_thuir_studscore_必修_原開課系所_上學期.to_excel(writer_管院開課資料feat學生修課資料_人數, sheet_name = '上學期必修')
+df_thuir_studscore_必修_原開課系所_下學期.to_excel(writer_管院開課資料feat學生修課資料_人數, sheet_name = '下學期必修')
+df_thuir_studscore_選修_原開課系所_上學期.to_excel(writer_管院開課資料feat學生修課資料_人數, sheet_name = '上學期選修')
+df_thuir_studscore_選修_原開課系所_下學期.to_excel(writer_管院開課資料feat學生修課資料_人數, sheet_name = '下學期選修')
+writer_管院開課資料feat學生修課資料_人數.save()
+writer_管院開課資料feat學生修課資料_人數.close()
+
+
+#-----------------必修-非原開課系所學生數--------------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------------------------------------------------
+#df_thuir_studscore_必修['原開課系所'] = (df_thuir_studscore_必修['MAJR_FULL_NAME'] == df_thuir_studscore_必修['MAJR1_NAME'])
+df_thuir_studscore_必修_非原開課系所 = df_thuir_studscore_必修[df_thuir_studscore_必修['原開課系所'] == False]
+#上學期必修
+df_thuir_studscore_必修_非原開課系所_上學期 = df_thuir_studscore_必修_非原開課系所[df_thuir_studscore_必修_非原開課系所['SETTERM'] =='1']
+df_thuir_studscore_必修_非原開課系所_上學期_107 = df_thuir_studscore_必修_非原開課系所_上學期[df_thuir_studscore_必修_非原開課系所_上學期['SETYEAR'] ==107]
+df_thuir_studscore_必修_非原開課系所_上學期_108 = df_thuir_studscore_必修_非原開課系所_上學期[df_thuir_studscore_必修_非原開課系所_上學期['SETYEAR'] ==108]
+df_thuir_studscore_必修_非原開課系所_上學期_109 = df_thuir_studscore_必修_非原開課系所_上學期[df_thuir_studscore_必修_非原開課系所_上學期['SETYEAR'] ==109]
+df_thuir_studscore_必修_非原開課系所_上學期_107 = df_thuir_studscore_必修_非原開課系所_上學期_107.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_必修_非原開課系所_上學期_108 = df_thuir_studscore_必修_非原開課系所_上學期_108.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_必修_非原開課系所_上學期_109 = df_thuir_studscore_必修_非原開課系所_上學期_109.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_必修_非原開課系所_上學期 = pd.concat([df_thuir_studscore_必修_非原開課系所_上學期_107,df_thuir_studscore_必修_非原開課系所_上學期_108,df_thuir_studscore_必修_非原開課系所_上學期_109])
+#下學期必修
+df_thuir_studscore_必修_非原開課系所_下學期 = df_thuir_studscore_必修_非原開課系所[df_thuir_studscore_必修_非原開課系所['SETTERM'] =='2']
+df_thuir_studscore_必修_非原開課系所_下學期_107 = df_thuir_studscore_必修_非原開課系所_下學期[df_thuir_studscore_必修_非原開課系所_下學期['SETYEAR'] ==107]
+df_thuir_studscore_必修_非原開課系所_下學期_108 = df_thuir_studscore_必修_非原開課系所_下學期[df_thuir_studscore_必修_非原開課系所_下學期['SETYEAR'] ==108]
+df_thuir_studscore_必修_非原開課系所_下學期_109 = df_thuir_studscore_必修_非原開課系所_下學期[df_thuir_studscore_必修_非原開課系所_下學期['SETYEAR'] ==109]
+df_thuir_studscore_必修_非原開課系所_下學期_107 = df_thuir_studscore_必修_非原開課系所_下學期_107.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_必修_非原開課系所_下學期_108 = df_thuir_studscore_必修_非原開課系所_下學期_108.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_必修_非原開課系所_下學期_109 = df_thuir_studscore_必修_非原開課系所_下學期_109.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_必修_非原開課系所_下學期 = pd.concat([df_thuir_studscore_必修_非原開課系所_下學期_107,df_thuir_studscore_必修_非原開課系所_下學期_108,df_thuir_studscore_必修_非原開課系所_下學期_109])
+
+#-----------------選修-非原開課系所學生數--------------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------------------------------------------------
+#df_thuir_studscore_選修['原開課系所'] = (df_thuir_studscore_選修['MAJR_FULL_NAME'] == df_thuir_studscore_選修['MAJR1_NAME'])
+df_thuir_studscore_選修_非原開課系所 = df_thuir_studscore_選修[df_thuir_studscore_選修['原開課系所'] == False]
+#上學期選修
+df_thuir_studscore_選修_非原開課系所_上學期 = df_thuir_studscore_選修_非原開課系所[df_thuir_studscore_選修_非原開課系所['SETTERM'] =='1']
+df_thuir_studscore_選修_非原開課系所_上學期_107 = df_thuir_studscore_選修_非原開課系所_上學期[df_thuir_studscore_選修_非原開課系所_上學期['SETYEAR'] ==107]
+df_thuir_studscore_選修_非原開課系所_上學期_108 = df_thuir_studscore_選修_非原開課系所_上學期[df_thuir_studscore_選修_非原開課系所_上學期['SETYEAR'] ==108]
+df_thuir_studscore_選修_非原開課系所_上學期_109 = df_thuir_studscore_選修_非原開課系所_上學期[df_thuir_studscore_選修_非原開課系所_上學期['SETYEAR'] ==109]
+df_thuir_studscore_選修_非原開課系所_上學期_107 = df_thuir_studscore_選修_非原開課系所_上學期_107.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_選修_非原開課系所_上學期_108 = df_thuir_studscore_選修_非原開課系所_上學期_108.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_選修_非原開課系所_上學期_109 = df_thuir_studscore_選修_非原開課系所_上學期_109.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_選修_非原開課系所_上學期 = pd.concat([df_thuir_studscore_選修_非原開課系所_上學期_107,df_thuir_studscore_選修_非原開課系所_上學期_108,df_thuir_studscore_選修_非原開課系所_上學期_109])
+#下學期選修
+df_thuir_studscore_選修_非原開課系所_下學期 = df_thuir_studscore_選修_非原開課系所[df_thuir_studscore_選修_非原開課系所['SETTERM'] =='2']
+df_thuir_studscore_選修_非原開課系所_下學期_107 = df_thuir_studscore_選修_非原開課系所_下學期[df_thuir_studscore_選修_非原開課系所_下學期['SETYEAR'] ==107]
+df_thuir_studscore_選修_非原開課系所_下學期_108 = df_thuir_studscore_選修_非原開課系所_下學期[df_thuir_studscore_選修_非原開課系所_下學期['SETYEAR'] ==108]
+df_thuir_studscore_選修_非原開課系所_下學期_109 = df_thuir_studscore_選修_非原開課系所_下學期[df_thuir_studscore_選修_非原開課系所_下學期['SETYEAR'] ==109]
+df_thuir_studscore_選修_非原開課系所_下學期_107 = df_thuir_studscore_選修_非原開課系所_下學期_107.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_選修_非原開課系所_下學期_108 = df_thuir_studscore_選修_非原開課系所_下學期_108.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_選修_非原開課系所_下學期_109 = df_thuir_studscore_選修_非原開課系所_下學期_109.drop_duplicates('STUD_NO', keep='last')
+df_thuir_studscore_選修_非原開課系所_下學期 = pd.concat([df_thuir_studscore_選修_非原開課系所_下學期_107,df_thuir_studscore_選修_非原開課系所_下學期_108,df_thuir_studscore_選修_非原開課系所_下學期_109])
+
+
+#-------------匯出所有資料至tableau上做圖------------------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------
+writer_管院開課資料feat學生修課資料_人數_非 = pd.ExcelWriter(r'C:\Users\User\PycharmProjects\pythonProject4\管理學院_需求分析\107-109管院開課資料feat學生修課資料(人數)_非原開課系所.xlsx', engine = 'xlsxwriter')
+df_thuir_studscore_必修_非原開課系所_上學期.to_excel(writer_管院開課資料feat學生修課資料_人數_非, sheet_name = '上學期必修')
+df_thuir_studscore_必修_非原開課系所_下學期.to_excel(writer_管院開課資料feat學生修課資料_人數_非, sheet_name = '下學期必修')
+df_thuir_studscore_選修_非原開課系所_上學期.to_excel(writer_管院開課資料feat學生修課資料_人數_非, sheet_name = '上學期選修')
+df_thuir_studscore_選修_非原開課系所_下學期.to_excel(writer_管院開課資料feat學生修課資料_人數_非, sheet_name = '下學期選修')
+writer_管院開課資料feat學生修課資料_人數_非.save()
+writer_管院開課資料feat學生修課資料_人數_非.close()
+
