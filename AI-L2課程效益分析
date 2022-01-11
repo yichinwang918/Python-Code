@@ -240,7 +240,7 @@ df_merge_inter['companyindustry'].replace(np.nan, '無', inplace = True)
 df_merge_inter['currname'].replace(np.nan, '無', inplace = True)
 df_merge_inter['isemployee'].replace(np.nan, '無', inplace = True)
 
-#------------匯出資料後到tableau做圖------------------------------------------------------------------------------------
+#------------匯出資料後到tableau做圖-----------------------------------------------------------------------------------
 df_merge_inter.to_excel(r'C:\Users\User\PycharmProjects\pythonProject4\AIL2&全校性AI-課程效益分析\(新)AI-L2課程效益分析\output\1082-1092_L2原始資料(篩選學制)串實習_v2.xlsx')
 
 
