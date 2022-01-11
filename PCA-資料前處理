@@ -1,0 +1,91 @@
+import pandas as pd
+import numpy as np
+import scipy.stats as st
+import matplotlib.pyplot as plt, seaborn
+from sklearn.preprocessing import MinMaxScaler
+from numpy.testing import assert_almost_equal
+from sklearn.decomposition import PCA
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#----------read data------------------------------------------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+f=open('D:/even.wang/Desktop/--/3. python/data/stock2610.csv')
+data = pd.read_csv(f)
+
+#----------查看是否有遺失值並刪除------------------------------------------------------------
+data.isnull().sum()
+data[~data['min'].isnull()]
+
+#----------summary-------------------------------------------------------------------------
+data.describe()  
+##boxplot to test outlier
+data['Trading_Volume'].plot.box(title='Trading_Volume') # outliers
+data['Trading_money'].plot.box(title='Trading_money') # outliers
+data['open'].plot.box(title='open')
+data['max'].plot.box(title='max')
+data['min'].plot.box(title='min') # a outlier 
+data['close'].plot.box(title='close')
+data['spread'].plot.box(title='spread') # outliers
+data['Trading_turnover'].plot.box(title='Trading_turnover') # outliers
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#----------PCA 主成分分析--------------------------------------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+df = data[['date', 'Trading_Volume', 'Trading_money','open', 'max', 'min', 'close', 'spread', 'Trading_turnover']]
+
+#----------normalization << PCA受數值權重影響------------------------------------------------
+X = df.iloc[:,1:]
+Min_Max_Scaler = MinMaxScaler( feature_range=(0,1) ) # 設定縮放的區間上下限
+MinMax_Data = Min_Max_Scaler.fit_transform( X ) 
+#scaler = MinMaxScaler()
+#data_scaled = scaler.fit_transform(X)
+df.iloc[:, 1:] = MinMax_Data 
+
+#----------顯示各特徵的平均與標準差-----------------------------------------------------------
+print("各特徵平均與標準差：")
+df_stats = df.describe().loc[['mean', 'std','min', 'max']]
+df_stats.style.format("{:.2f}")
+print(df_stats)
+print(df_stats.iloc[:, 0 ])
+print(df_stats.iloc[:, 1 ])
+print(df_stats.iloc[:, 2 ])
+print(df_stats.iloc[:, 3 ])
+print(df_stats.iloc[:, 4 ])
+print(df_stats.iloc[:, 5 ])
+print(df_stats.iloc[:, 6 ])
+print(df_stats.iloc[:, 7 ])
+
+n_components = 8
+random_state = 9527 #隨機種子
+pca = PCA(n_components=n_components,random_state=random_state)
+
+#----------對正規化後的特徵 Z 做 PCA----------------------------------------------------------
+L = pca.fit_transform(MinMax_Data)  # (n_samples, n_components)
+#----------將投影到第一主成分的 repr. 顯示在 x 軸，第二主成分在 y 軸----------------------------
+#plt.scatter(L[:, 0], L[:, 1])
+#plt.axis('equal');
+pcs = np.array(pca.components_) # (n_comp, n_features)
+df_pc = pd.DataFrame(pcs, columns=df.columns[1:])
+df_pc.index = [f"第{c}主成分" for c in['一', '二', '三', '四', '五', '六','七','八']]
+print(df_pc)
+print(df_pc.iloc[:, 0 ])
+print(df_pc.iloc[:, 1 ])
+print(df_pc.iloc[:, 2 ])
+print(df_pc.iloc[:, 3 ])
+print(df_pc.iloc[:, 4 ])
+print(df_pc.iloc[:, 5 ])
+print(df_pc.iloc[:, 6 ])
+print(df_pc.iloc[:, 7 ])
+
+#----------主成分解釋變異--------------------------------------------------------------------
+pca_10d = PCA(8, random_state=random_state)
+pca_10d.fit(MinMax_Data)
+np.round(pca_10d.explained_variance_ratio_, 3)
+
+
+#----------相關係數分析----------------------------------------------------------------------
+
+df2 = data[[ 'Trading_Volume', 'Trading_money','open', 'max', 'min', 'close', 'spread', 'Trading_turnover']]
+df2_corr = df2.corr()
+seaborn.heatmap(df2_corr, center=0,fmt='.2f',annot_kws={'size':11}, annot=True) #annot=True每個方格寫入資料
