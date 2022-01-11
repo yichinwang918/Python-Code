@@ -1,0 +1,225 @@
+import sys
+sys.modules[__name__].__dict__.clear()
+
+import pandas as pd
+import numpy as np
+
+import pyodbc
+# Some other example server values are
+# server = 'localhost\sqlexpress' # for a named instance
+# server = 'myserver,port' # to specify an alternate port
+
+server = '---.---.--.--'
+database = '-----'
+username = '-----'
+password = '-----'
+cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
+cursor = cnxn.cursor()
+
+cursor.execute("SELECT @@version;")
+row = cursor.fetchone()
+while row:
+    print(row[0])
+    row = cursor.fetchone()
+cursor = cnxn.cursor()
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------
+#------------- 抓 旗標 AI計畫L2 1082-1092------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------------------------------
+query1 = "SELECT * FROM *****_*********_**** WHERE SETYEAR = '108' AND SETTERM = '2' AND CURR_ATTR = 'AI計畫L2';"
+df_1082 = pd.read_sql(query1, cnxn)
+df_1082['TYPE_NAME'].value_counts()
+df_1082_2 = df_1082[df_1082['TYPE_NAME'].isin(['日間學士班', '進修學士班', '碩士班'])]
+df_1082_2['學年期'] = df_1082_2['SETYEAR'].map(str)+df_1082_2['SETTERM'].map(str)
+df_1082_2['學年期'] = df_1082_2['學年期'].replace({'108.02':'1082'})
+df_1082_2['學制'] = df_1082_2['TYPE_NAME'].replace({'日間學士班':'日間/進修學士班', '進修學士班':'日間/進修學士班'})
+
+query2 = "SELECT * FROM *****_*********_**** WHERE SETYEAR = '109' AND SETTERM = '1' AND CURR_ATTR = 'AI計畫L2';"
+df_1091 = pd.read_sql(query2, cnxn)
+df_1091['TYPE_NAME'].value_counts()
+df_1091_2 = df_1091[df_1091['TYPE_NAME'].isin(['日間學士班', '進修學士班', '碩士班'])]
+df_1091_2['學年期'] = df_1091_2['SETYEAR'].map(str)+df_1091_2['SETTERM'].map(str)
+df_1091_2['學年期'] = df_1091_2['學年期'].replace({'109.01':'1091'})
+df_1091_2['學制'] = df_1091_2['TYPE_NAME'].replace({'日間學士班':'日間/進修學士班', '進修學士班':'日間/進修學士班'})
+
+query3 = "SELECT * FROM *****_*********_**** WHERE SETYEAR = '109' AND SETTERM = '2' AND CURR_ATTR = 'AI計畫L2';"
+df_1092 = pd.read_sql(query3, cnxn)
+df_1092['TYPE_NAME'].value_counts()
+df_1092_2 = df_1092[df_1092['TYPE_NAME'].isin(['日間學士班', '進修學士班', '碩士班'])]
+df_1092_2['學年期'] = df_1092_2['SETYEAR'].map(str)+df_1092_2['SETTERM'].map(str)
+df_1092_2['學年期'] = df_1092_2['學年期'].replace({'109.02':'1092'})
+df_1092_2['學制'] = df_1092_2['TYPE_NAME'].replace({'日間學士班':'日間/進修學士班', '進修學士班':'日間/進修學士班'})
+
+1082-1092AI-L2修課名單
+df_1082_2_刪重複學生=df_1082_2.drop_duplicates(subset='STUD_NO', keep='first')
+df_1091_2_刪重複學生=df_1091_2.drop_duplicates(subset='STUD_NO', keep='first')
+df_1092_2_刪重複學生=df_1092_2.drop_duplicates(subset='STUD_NO', keep='first')
+
+
+#----------將抓取之原始資料匯出------------------------------------
+writer = pd.ExcelWriter(r'C:\Users\User\PycharmProjects\pythonProject4\AIL2&全校性AI-課程效益分析\(新)AI-L2課程效益分析\output\1082-1092AI-L2修課名單.xlsx', engine = 'xlsxwriter')
+df_1082_2_刪重複學生.to_excel(writer, sheet_name = '1082')
+df_1091_2_刪重複學生.to_excel(writer, sheet_name = '1091')
+df_1092_2_刪重複學生.to_excel(writer, sheet_name = '1092')
+writer.save()
+writer.close()
+
+#----------1082-1092資料合併-------------------------------------
+df_1082至1092_L2資料 = pd.concat([df_1082_2,df_1091_2,df_1092_2])
+df_1082至1092_L2資料['學年期-選課代碼'] = df_1082至1092_L2資料['學年期'].map(str)+'-'+df_1082至1092_L2資料['CURR_CODE'].map(str)
+
+
+#----------串教學意見調查分數、選課、修課人數----------------------
+query99 = "SELECT * FROM *****_********_**** ;"
+ddata = pd.read_sql(query99, cnxn)
+ddata['學年期'] = ddata['SETYEAR'].map(str)+ddata['SETTERM'].map(str)
+ddata = ddata[ddata['學年期'].isin(['108.02.0', '109.01.0', '109.02.0'])]
+ddata['學年期'] = ddata['學年期'].replace({'108.02.0':'1082', '109.01.0':'1091', '109.02.0':'1092'})
+ddata['學年期-選課代碼'] = ddata['學年期'].map(str)+'-'+ddata['CURR_CODE'].map(str)
+ddata = ddata.drop_duplicates(subset=['學年期-選課代碼'], keep='first')
+ddata = ddata[['學年期-選課代碼', 'COURSE_STUDENT', 'MTBS_STUDENT', 'assessment_score']]
+
+df_1082至1092_L2資料_merge = pd.merge(df_1082至1092_L2資料, ddata, left_on='學年期-選課代碼', right_on='學年期-選課代碼', how='left')
+df_1082至1092_L2資料_merge.to_excel(r'C:\Users\User\PycharmProjects\pythonProject4\AIL2&全校性AI-課程效益分析\(新)AI-L2課程效益分析\output\1082-1092_L2原始資料(篩選學制)_v2.xlsx')
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#--------------- 1082-1092 AI-L2的人 跨系修課情況---------------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#------------抓1082學生名單--------------------------------------
+#---------------------------------------------------------------
+df_1082_2_學生名單 = df_1082_2.drop_duplicates(subset=['STUD_NO'], keep='last')
+query11 = "SELECT * FROM thuir_studscore_attr WHERE SETYEAR = '108' AND SETTERM = '2';"
+df_1082_總修課資料 = pd.read_sql(query11, cnxn)
+df_1082_2_L2學生名單feat修課 = pd.merge(df_1082_2_學生名單['STUD_NO'], df_1082_總修課資料, left_on= 'STUD_NO', right_on='STUD_NO', how= 'left')
+df_1082_2_L2學生名單feat修課 = df_1082_2_L2學生名單feat修課[~df_1082_2_L2學生名單feat修課['MAJR_FULL_NAME'].isin(['不分系'])]
+
+#------------是否跨系修課----------------------------------------
+#df_1082_2_L2學生名單feat修課['是否跨系修課'] = (df_1082_2_L2學生名單feat修課['MAJR_FULL_NAME'] == df_1082_2_L2學生名單feat修課['MAJR2_NAME'])
+
+#------------是否為跨系課程--------------------------------------
+#df_1082_2_L2學生名單feat修課['是否為跨域課程'] = df_1082_2_L2學生名單feat修課['CURR_ATTR'].isin(['院整合式', '微學分課程', '學分學程', '大學院課程', '創新學院-樂齡', '創新學院-雲創', '課程模組'])
+
+
+#------------抓1091學生名單--------------------------------------
+#---------------------------------------------------------------
+df_1091_2_學生名單 = df_1091_2.drop_duplicates(subset=['STUD_NO'], keep='last')
+query22 = "SELECT * FROM thuir_studscore_attr WHERE SETYEAR = '109' AND SETTERM = '1';"
+df_1091_總修課資料 = pd.read_sql(query22, cnxn)
+df_1091_2_L2學生名單feat修課 = pd.merge(df_1091_2_學生名單['STUD_NO'], df_1091_總修課資料, left_on= 'STUD_NO', right_on='STUD_NO', how= 'left')
+df_1091_2_L2學生名單feat修課 = df_1091_2_L2學生名單feat修課[~df_1091_2_L2學生名單feat修課['MAJR_FULL_NAME'].isin(['不分系'])]
+
+#------------是否跨系修課----------------------------------------
+#df_1091_2_L2學生名單feat修課['是否跨系修課'] = (df_1091_2_L2學生名單feat修課['MAJR_FULL_NAME'] == df_1091_2_L2學生名單feat修課['MAJR2_NAME'])
+
+#------------是否為跨系課程--------------------------------------
+#df_1091_2_L2學生名單feat修課['是否為跨域課程'] = df_1091_2_L2學生名單feat修課['CURR_ATTR'].isin(['院整合式', '微學分課程', '學分學程', '大學院課程', '創新學院-樂齡', '創新學院-雲創', '課程模組'])
+
+
+#------------抓1092學生名單-------------------------------------
+#--------------------------------------------------------------
+df_1092_2_學生名單 = df_1092_2.drop_duplicates(subset=['STUD_NO'], keep='last')
+query33 = "SELECT * FROM thuir_studscore_attr WHERE SETYEAR = '109' AND SETTERM = '2';"
+df_1092_總修課資料 = pd.read_sql(query33, cnxn)
+df_1092_2_L2學生名單feat修課 = pd.merge(df_1092_2_學生名單['STUD_NO'], df_1092_總修課資料, left_on= 'STUD_NO', right_on='STUD_NO', how= 'left')
+df_1092_2_L2學生名單feat修課 = df_1092_2_L2學生名單feat修課[~df_1092_2_L2學生名單feat修課['MAJR_FULL_NAME'].isin(['不分系'])]
+
+#------------是否跨系修課---------------------------------------
+#df_1092_2_L2學生名單feat修課['是否跨系修課'] = (df_1092_2_L2學生名單feat修課['MAJR_FULL_NAME'] == df_1092_2_L2學生名單feat修課['MAJR2_NAME'])
+
+#------------是否為跨系課程-------------------------------------
+#df_1092_2_L2學生名單feat修課['是否為跨域課程'] = df_1092_2_L2學生名單feat修課['CURR_ATTR'].isin(['院整合式', '微學分課程', '學分學程', '大學院課程', '創新學院-樂齡', '創新學院-雲創', '課程模組'])
+
+#------------1082-1092跨域資料合併------------------------------
+df_1082至1092_L2資料_跨域 = pd.concat([df_1082_2_L2學生名單feat修課, df_1091_2_L2學生名單feat修課, df_1092_2_L2學生名單feat修課])
+df_1082至1092_L2資料_跨域['學年期'] = df_1082至1092_L2資料_跨域['SETYEAR'].map(str)+df_1082至1092_L2資料_跨域['SETTERM'].map(str)
+df_1082至1092_L2資料_跨域['學年期'] = df_1082至1092_L2資料_跨域['學年期'].replace({'108.02':'1082', '109.01':'1091', '109.02':'1092'})
+#------------學系更改-------------------------------------------
+df_1082至1092_L2資料_跨域['學系(不分組)'] = df_1082至1092_L2資料_跨域['MAJR_FULL_NAME'].replace({'資訊工程學系軟體工程組':'資訊工程學系',
+                                                                                            '資訊工程學系資電工程組':'資訊工程學系',
+                                                                                            '資訊工程學系數位創意組':'資訊工程學系',
+                                                                                            '電機工程學系IC設計與無線通訊組':'電機工程學系',
+                                                                                            '生命科學系生物醫學組':'生命科學系',
+                                                                                            '電機工程學系奈米電子與能源技術組':'電機工程學系',
+                                                                                            '化學系化學生物組':'化學系',
+                                                                                            '生命科學系生態暨生物多樣性組':'生命科學系',
+                                                                                            '化學系化學組':'化學系',
+                                                                                            '政治學系政治理論組':'政治學系',
+                                                                                            '經濟學系一般經濟組':'經濟學系',
+                                                                                            '應用物理學系材料及奈米科技組':'應用物理學系',
+                                                                                            '資訊工程學系在職專班高階資訊經營與創業組':'資訊工程學系',
+                                                                                            '應用物理學系光電組':'應用物理學系',
+                                                                                            '資訊工程學系在職專班大數據物聯網應用組':'資訊工程學系',
+                                                                                            '外國語文學系英語教學組':'外國語文學系',
+                                                                                            '工業工程與經營資訊學系高階醫務工程與管理在職專班':'工業工程與經營資訊學系',
+                                                                                            '政治學系國際關係組':'政治學系',
+                                                                                            '經濟學系產業經濟組':'經濟學系',
+                                                                                            '景觀學系在職專班':'景觀學系',
+                                                                                            '工業設計學系在職專班':'工業設計學系',
+                                                                                            '食品科學系食品科技組':'食品科學系',
+                                                                                            '資訊工程學系在職專班':'資訊工程學系',
+                                                                                            })
+
+df_1082至1092_L2資料_跨域['MAJR1_NAME'].replace(np.nan, '雲創學院', inplace = True)
+
+
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#------------輔系雙主修狀況------------------------------------------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+query = "SELECT * FROM *****_**_*********  ;"
+df_thuir_s9_SecDegree = pd.read_sql(query, cnxn)
+
+df_1082至1092_L2資料_跨域_輔系雙修 = pd.merge(df_1082至1092_L2資料_跨域, df_thuir_s9_SecDegree, left_on= 'STUD_NO', right_on='stud_no', how= 'left')
+
+#df_1082至1092_L2資料_跨域.to_excel(r'C:\Users\User\PycharmProjects\pythonProject4\(新)AI-L2課程效益分析\output\1082-1092_L2跨域(版本2).xlsx')
+df_1082至1092_L2資料_跨域_輔系雙修.to_excel(r'C:\Users\User\PycharmProjects\pythonProject4\AIL2&全校性AI-課程效益分析\(新)AI-L2課程效益分析\output\1082-1092_L2跨域(版本3)_v2.xlsx')
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#----------- 1082 修AI-L2課 現在畢業了 的 畢業流向調查 ----------------------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+query44 = "SELECT * FROM *****_****** WHERE school_year = '110' and question_num = 1.0;"
+df_thuir_alumni = pd.read_sql(query44, cnxn)
+
+query55 = "SELECT * FROM *****_******_****_**** ;"
+df_thuir_alumni_stud_info = pd.read_sql(query55, cnxn)
+df_thuir_alumni_stud_info_畢業滿一年 = df_thuir_alumni_stud_info[df_thuir_alumni_stud_info['question_num'] == 1.0]
+
+df_1082_2_學生名單
+df_1082_2_學生名單_移除不分院 = df_1082_2_學生名單[~df_1082_2_學生名單['COLLEGE'].isin(['不分院'])]
+df_1082_2_學生名單_移除不分院_2 = df_1082_2_學生名單_移除不分院[['SETYEAR', 'SETTERM', '學年期', 'STUD_NO', 'TYPE_NAME', 'COLLEGE', 'MAJR_FULL_NAME']]
+
+#df_1082_2_學生名單_移除不分院_2_merge_畢業流向 = pd.merge(df_1082_2_學生名單_移除不分院_2, df_thuir_alumni, left_on= 'STUD_NO', right_on= 'stud_no', how = 'inner')
+
+df_1082_2_學生名單_移除不分院_2_merge_畢業流向 = pd.merge(df_thuir_alumni, df_1082_2_學生名單_移除不分院_2, left_on= 'stud_no', right_on= 'STUD_NO', how = 'left')
+df_1082_2_學生名單_移除不分院_2_merge_畢業流向['是否修l2'] = df_1082_2_學生名單_移除不分院_2_merge_畢業流向['STUD_NO']
+df_1082_2_學生名單_移除不分院_2_merge_畢業流向.to_excel(r'C:\Users\User\PycharmProjects\pythonProject4\AIL2&全校性AI-課程效益分析\(新)AI-L2課程效益分析\output\1082畢業生有無修L2(for回歸用).xlsx')
+
+d = df_1082_2_學生名單_移除不分院_2_merge_畢業流向['STUD_NO'].value_counts()
+d.to_excel(r'C:\Users\User\PycharmProjects\pythonProject4\AIL2&全校性AI-課程效益分析\(新)AI-L2課程效益分析\output\1082畢業生名單_v2.xlsx')
+
+#------------刪除不分院學生------------------------------------------------------------------------------------------------------------------------------------------------------------
+df_1082_2_學生名單_移除不分院_2_merge_畢業流向_merge畢業生_stud_info = pd.merge(df_1082_2_學生名單_移除不分院_2_merge_畢業流向, df_thuir_alumni_stud_info_畢業滿一年, left_on= 'STUD_NO', right_on='stud_no', how='left')
+df_1082_2_學生名單_移除不分院_2_merge_畢業流向_merge畢業生_stud_info_2 = df_1082_2_學生名單_移除不分院_2_merge_畢業流向_merge畢業生_stud_info[['survey_year_x', 'question_num_x', 'stud_no_x', 'quiz_num',
+                                                                                                               'ans_0', 'ans_1', 'ans_2', 'ans_3', 'ans_4', 'ans_5', 'survey_year_y', 'question_num_y',
+                                                                                                               'stud_no_y', 'type_name', 'college', 'majr_no', 'majr_full_name', 'sex', 'kind1_name',
+                                                                                                               'kind2_name', 'gd_leader_yn', 'minor_1', 'minor_2', 'minor_3', 'minor_4', 'double_major',
+                                                                                                               'five_year_yn', 'school_year']]
+
+df_1082_2_學生名單_移除不分院_2_merge_畢業流向_merge畢業生_stud_info_2 = df_1082_2_學生名單_移除不分院_2_merge_畢業流向_merge畢業生_stud_info_2.rename(columns={'survey_year_x':'畢業學年','question_num_x':'追蹤對象',
+                                                                                                                                                 'stud_no_x':'stud_no','quiz_num':'題項號碼',
+                                                                                                                                                 'ans_1':'選項','survey_year_y':'畢業年度',
+                                                                                                                                                 'question_num_y':'question_num (thuir_alumni_stud_info)','stud_no_y':'stud_no (thuir_alumni_stud_info)',
+                                                                                                                                                 'sex':'性別','kind2_name':'分發管道',
+                                                                                                                                                 'gd_leader_yn':'勞作小組長','school_year':'調查學年'})
+
+#------------匯出資料後到tableau做圖------------------------------------------------------------------------------------
+df_1082_2_學生名單_移除不分院_2_merge_畢業流向_merge畢業生_stud_info_2.to_excel(r'C:\Users\User\PycharmProjects\pythonProject4\AIL2&全校性AI-課程效益分析\(新)AI-L2課程效益分析\output\1082畢業生流向_v2.xlsx')
+
+
+
+
+
+
+
