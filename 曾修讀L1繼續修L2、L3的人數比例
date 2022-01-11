@@ -1,0 +1,179 @@
+import sys
+sys.modules[__name__].__dict__.clear()
+
+import pandas as pd
+import numpy as np
+
+import pyodbc
+# Some other example server values are
+# server = 'localhost\sqlexpress' # for a named instance
+# server = 'myserver,port' # to specify an alternate port
+
+server = '---.---.--.--'
+database = '-----'
+username = '-----'
+password = '-----'
+cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
+cursor = cnxn.cursor()
+
+cursor.execute("SELECT @@version;")
+row = cursor.fetchone()
+while row:
+    print(row[0])
+    row = cursor.fetchone()
+cursor = cnxn.cursor()
+
+#--------1092------------------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------------------------
+#課程成績
+query1 = "SELECT * FROM *****_*****_**** WHERE SETYEAR = '109' AND SETTERM = '1' ;"
+df_1091 = pd.read_sql(query1, cnxn)
+df_1091 = df_1091[df_1091['CURR_ATTR'].isin(['程式設計-Level1', 'AI計畫L1'])]
+df_1091_移除重複 = df_1091.drop_duplicates(subset=['STUD_NO'], keep='last')
+
+#選課紀錄
+query2 = "SELECT * FROM *****_******** WHERE SETYEAR = '109' AND SETTERM = '2';"
+df_1092_選課紀錄 = pd.read_sql(query2, cnxn)
+
+#開課資料
+query3 = "SELECT * FROM *****_********_**** WHERE SETYEAR = '109' AND SETTERM = '2';"
+df_1092_開課資料 = pd.read_sql(query3, cnxn)
+df_1092_開課資料 = df_1092_開課資料[df_1092_開課資料['CURR_ATTR'].isin(['程式設計-Level2', 'AI計畫L2'])]
+df_1092_開課資料 = df_1092_開課資料[['CURR_CODE', 'CURR_ATTR']]
+
+df_1092_選課紀錄merge選課代碼 = pd.merge(df_1092_選課紀錄, df_1092_開課資料, left_on='CURR_CODE', right_on='CURR_CODE', how = 'left')
+df_1092_選課紀錄merge選課代碼['CURR_ATTR'] = df_1092_選課紀錄merge選課代碼['CURR_ATTR'].replace({np.nan: '無'})
+df_1092_選課紀錄merge選課代碼 = df_1092_選課紀錄merge選課代碼[~df_1092_選課紀錄merge選課代碼['CURR_ATTR'].isin(['無'])]
+
+df_1092_選課紀錄merge選課代碼_2 = df_1092_選課紀錄merge選課代碼.drop_duplicates(subset=['STUD_NO'], keep='last')
+df_1092_選課紀錄merge選課代碼_2 = df_1092_選課紀錄merge選課代碼_2[['STUD_NO', 'CURR_ATTR']]
+
+df_1091_移除重複merge修l2 = pd.merge(df_1091_移除重複, df_1092_選課紀錄merge選課代碼_2, left_on='STUD_NO', right_on='STUD_NO', how= 'left')
+df_1091_移除重複merge修l2['CURR_ATTR_y'] = df_1091_移除重複merge修l2['CURR_ATTR_y'].replace({np.nan:'無'})
+df_1091_移除重複merge修l2['CURR_ATTR_y'].value_counts()
+
+
+#--------1101------------------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------------------------
+#課程成績
+query11 = "SELECT * FROM *****_********_**** WHERE SETYEAR = '109' AND SETTERM = '2';"
+df_1092 = pd.read_sql(query11, cnxn)
+df_1092 = df_1092[df_1092['CURR_ATTR'].isin(['程式設計-Level1', 'AI計畫L1'])]
+df_1092_移除重複 = df_1092.drop_duplicates(subset=['STUD_NO'], keep='last')
+
+#選課紀錄
+query22 = "SELECT * FROM *****_******** WHERE SETYEAR = '110' AND SETTERM = '1';"
+df_1101_選課紀錄 = pd.read_sql(query22, cnxn)
+
+#開課資料
+query33 = "SELECT * FROM *****_********_**** WHERE SETYEAR = '110' AND SETTERM = '1';"
+df_1101_開課資料 = pd.read_sql(query33, cnxn)
+df_1101_開課資料 = df_1101_開課資料[df_1101_開課資料['CURR_ATTR'].isin(['程式設計-Level2', 'AI計畫L2'])]
+df_1101_開課資料 = df_1101_開課資料[['CURR_CODE', 'CURR_ATTR']]
+
+df_1101_選課紀錄merge選課代碼 = pd.merge(df_1101_選課紀錄, df_1101_開課資料, left_on='CURR_CODE', right_on='CURR_CODE', how = 'left')
+df_1101_選課紀錄merge選課代碼['CURR_ATTR'] = df_1101_選課紀錄merge選課代碼['CURR_ATTR'].replace({np.nan: '無'})
+df_1101_選課紀錄merge選課代碼 = df_1101_選課紀錄merge選課代碼[~df_1101_選課紀錄merge選課代碼['CURR_ATTR'].isin(['無'])]
+
+df_1101_選課紀錄merge選課代碼_2 = df_1101_選課紀錄merge選課代碼.drop_duplicates(subset=['STUD_NO'], keep='last')
+df_1101_選課紀錄merge選課代碼_2 = df_1101_選課紀錄merge選課代碼_2[['STUD_NO', 'CURR_ATTR']]
+
+df_1092_移除重複merge修l2 = pd.merge(df_1092_移除重複, df_1101_選課紀錄merge選課代碼_2, left_on='STUD_NO', right_on='STUD_NO', how= 'left')
+df_1092_移除重複merge修l2['CURR_ATTR_y'] = df_1092_移除重複merge修l2['CURR_ATTR_y'].replace({np.nan:'無'})
+df_1092_移除重複merge修l2['CURR_ATTR_y'].value_counts()
+
+
+#----深耕年計算-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+df = pd.concat([df_1091_移除重複merge修l2,df_1092_移除重複merge修l2])
+df_2 = df.drop_duplicates(subset = 'STUD_NO', keep='last')
+table = pd.concat([df_2['CURR_ATTR_y'].value_counts(),
+                   df_2['CURR_ATTR_y'].value_counts(normalize=True).mul(100)], axis=1,keys=('counts','percentage'))
+table
+
+
+#----學期計算-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+table1 = pd.concat([df_1091_移除重複merge修l2['CURR_ATTR_y'].value_counts(),
+                   df_1091_移除重複merge修l2['CURR_ATTR_y'].value_counts(normalize=True).mul(100)], axis=1,keys=('counts','percentage'))
+table1
+#----學期計算-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+table2 = pd.concat([df_1092_移除重複merge修l2['CURR_ATTR_y'].value_counts(),
+                   df_1092_移除重複merge修l2['CURR_ATTR_y'].value_counts(normalize=True).mul(100)], axis=1,keys=('counts','percentage'))
+table2
+
+
+
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+##-----------------L2 繼續修 l3 -------------------------------------------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#----1092----------------------------------------------------------------------------------------------------------------------------------------------------
+#課程成績
+query1 = "SELECT * FROM thuir_studscore_attr WHERE SETYEAR = '109' AND SETTERM = '1' ;"
+df_1091 = pd.read_sql(query1, cnxn)
+df_1091 = df_1091[df_1091['CURR_ATTR'].isin(['程式設計-Level2', 'AI計畫L2'])]
+df_1091_移除重複 = df_1091.drop_duplicates(subset=['STUD_NO'], keep='last')
+
+#選課紀錄
+query2 = "SELECT * FROM thuir_studsele WHERE SETYEAR = '109' AND SETTERM = '2';"
+df_1092_選課紀錄 = pd.read_sql(query2, cnxn)
+
+#開課資料
+query3 = "SELECT * FROM thuir_studcurr_attr WHERE SETYEAR = '109' AND SETTERM = '2';"
+df_1092_開課資料 = pd.read_sql(query3, cnxn)
+df_1092_開課資料 = df_1092_開課資料[df_1092_開課資料['CURR_ATTR'].isin(['程式設計-Level3'])]
+df_1092_開課資料 = df_1092_開課資料[['CURR_CODE', 'CURR_ATTR']]
+
+df_1092_選課紀錄merge選課代碼 = pd.merge(df_1092_選課紀錄, df_1092_開課資料, left_on='CURR_CODE', right_on='CURR_CODE', how = 'left')
+df_1092_選課紀錄merge選課代碼['CURR_ATTR'] = df_1092_選課紀錄merge選課代碼['CURR_ATTR'].replace({np.nan: '無'})
+df_1092_選課紀錄merge選課代碼 = df_1092_選課紀錄merge選課代碼[~df_1092_選課紀錄merge選課代碼['CURR_ATTR'].isin(['無'])]
+
+df_1092_選課紀錄merge選課代碼_2 = df_1092_選課紀錄merge選課代碼.drop_duplicates(subset=['STUD_NO'], keep='last')
+df_1092_選課紀錄merge選課代碼_2 = df_1092_選課紀錄merge選課代碼_2[['STUD_NO', 'CURR_ATTR']]
+
+df_1091_移除重複merge修l2 = pd.merge(df_1091_移除重複, df_1092_選課紀錄merge選課代碼_2, left_on='STUD_NO', right_on='STUD_NO', how= 'left')
+df_1091_移除重複merge修l2['CURR_ATTR_y'] = df_1091_移除重複merge修l2['CURR_ATTR_y'].replace({np.nan:'無'})
+df_1091_移除重複merge修l2['CURR_ATTR_y'].value_counts()
+
+
+#----1101----------------------------------------------------------------------------------------------------------------------------------------------------
+#課程成績
+query11 = "SELECT * FROM thuir_studscore_attr WHERE SETYEAR = '109' AND SETTERM = '2';"
+df_1092 = pd.read_sql(query11, cnxn)
+df_1092 = df_1092[df_1092['CURR_ATTR'].isin(['程式設計-Level2', 'AI計畫L2'])]
+df_1092_移除重複 = df_1092.drop_duplicates(subset=['STUD_NO'], keep='last')
+
+#選課紀錄
+query22 = "SELECT * FROM thuir_studsele WHERE SETYEAR = '110' AND SETTERM = '1';"
+df_1101_選課紀錄 = pd.read_sql(query22, cnxn)
+
+#開課資料
+query33 = "SELECT * FROM thuir_studcurr_attr WHERE SETYEAR = '110' AND SETTERM = '1';"
+df_1101_開課資料 = pd.read_sql(query33, cnxn)
+df_1101_開課資料 = df_1101_開課資料[df_1101_開課資料['CURR_ATTR'].isin(['程式設計-Level3'])]
+df_1101_開課資料 = df_1101_開課資料[['CURR_CODE', 'CURR_ATTR']]
+
+df_1101_選課紀錄merge選課代碼 = pd.merge(df_1101_選課紀錄, df_1101_開課資料, left_on='CURR_CODE', right_on='CURR_CODE', how = 'left')
+df_1101_選課紀錄merge選課代碼['CURR_ATTR'] = df_1101_選課紀錄merge選課代碼['CURR_ATTR'].replace({np.nan: '無'})
+df_1101_選課紀錄merge選課代碼 = df_1101_選課紀錄merge選課代碼[~df_1101_選課紀錄merge選課代碼['CURR_ATTR'].isin(['無'])]
+
+df_1101_選課紀錄merge選課代碼_2 = df_1101_選課紀錄merge選課代碼.drop_duplicates(subset=['STUD_NO'], keep='last')
+df_1101_選課紀錄merge選課代碼_2 = df_1101_選課紀錄merge選課代碼_2[['STUD_NO', 'CURR_ATTR']]
+
+df_1092_移除重複merge修l2 = pd.merge(df_1092_移除重複, df_1101_選課紀錄merge選課代碼_2, left_on='STUD_NO', right_on='STUD_NO', how= 'left')
+df_1092_移除重複merge修l2['CURR_ATTR_y'] = df_1092_移除重複merge修l2['CURR_ATTR_y'].replace({np.nan:'無'})
+df_1092_移除重複merge修l2['CURR_ATTR_y'].value_counts()
+#----深耕年計算-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+df = pd.concat([df_1091_移除重複merge修l2,df_1092_移除重複merge修l2])
+df_2 = df.drop_duplicates(subset = 'STUD_NO', keep='last')
+table = pd.concat([df_2['CURR_ATTR_y'].value_counts(),
+                   df_2['CURR_ATTR_y'].value_counts(normalize=True).mul(100)], axis=1,keys=('counts','percentage'))
+table
+#----學期計算-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+table1 = pd.concat([df_1091_移除重複merge修l2['CURR_ATTR_y'].value_counts(),
+                   df_1091_移除重複merge修l2['CURR_ATTR_y'].value_counts(normalize=True).mul(100)], axis=1,keys=('counts','percentage'))
+table1
+#----學期計算-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+table2 = pd.concat([df_1092_移除重複merge修l2['CURR_ATTR_y'].value_counts(),
+                   df_1092_移除重複merge修l2['CURR_ATTR_y'].value_counts(normalize=True).mul(100)], axis=1,keys=('counts','percentage'))
+table2
+
