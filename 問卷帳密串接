@@ -1,0 +1,93 @@
+import os
+import sys
+sys.modules[__name__].__dict__.clear()
+
+import numpy as np
+import pandas as pd
+import pyodbc
+# Some other example server values are
+# server = 'localhost\sqlexpress' # for a named instance
+# server = 'myserver,port' # to specify an alternate port
+
+server = '***.***.**.**'
+database = '*'
+username = '*'
+password = '*'
+cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
+cursor = cnxn.cursor()
+
+cursor.execute("SELECT @@version;")
+row = cursor.fetchone()
+while row:
+    print(row[0])
+    row = cursor.fetchone()
+cursor = cnxn.cursor()
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+year = '2021'
+file = "*******.xlsx"
+file_path = 'D:\\Users\\*****\\Desktop\\*******'
+road = file_path+'\\'+year+file
+
+#course_info
+#轉真學號
+query1 = "SELECT * FROM ***** ;"
+df_number_mapping = pd.read_sql(query1, cnxn)
+
+
+#student_info
+query2 = "SELECT * FROM ***** where enter_year = '110' and trc_type = '在學' and type_name = '日間學士班' and grade = '1';"
+df_student_info = pd.read_sql(query2, cnxn)
+df_student_info_110_更 = df_student_info[['stud_no', 'type_2_name', 'college_name', 'majr_simple_name', 'majr_full_name','class_name','enter_year', 'grade', 'kind1_name','sex', 'nationality_name']]
+df_110新生= pd.merge(df_student_info_110_更, df_number_mapping, left_on='stud_no', right_on='encrypt_stud_no', how='inner')
+
+df_110新生['語言'] = df_110新生['nationality_name'].replace({'中國大陸':'中文', '香港 ':'中文', '澳門':'中文', '': '中文'})
+
+df_110新生_中文 = df_110新生[df_110新生['語言'].isin(['中文'])]
+df_110新生_中文 = df_110新生_中文.reset_index()
+df_110新生_中文 = df_110新生_中文.drop(['index'], axis=1)
+
+df_110新生_英文 = df_110新生[~df_110新生['語言'].isin(['中文'])]
+df_110新生_英文['語言'] = '英文'
+df_110新生_英文 = df_110新生_英文.reset_index()
+df_110新生_英文 = df_110新生_英文.drop(['index'], axis=1)
+
+ch_count1 = pd.read_excel(r'*:\*****\****\Desktop\****\************\2021\**********\**************\***\****-1001C.xlsx', sheet_name = "SheetName")
+en_count1 = pd.read_excel(r'*:\*****\****\Desktop\****\************\2021\**********\**************\***\****-1001E.xlsx', sheet_name = "SheetName")
+
+ch_count = ch_count1.drop([0,1,2])
+ch_count = ch_count.rename(columns={'學校名稱':'帳號', '東海大學':'密碼'})
+ch_count = pd.DataFrame(ch_count[:3048])
+ch_count = ch_count.reset_index()
+ch_count = ch_count[['帳號', '密碼']]
+
+en_count = en_count1.drop([0,1,2])
+en_count = en_count.rename(columns={'學校名稱':'帳號', '東海大學':'密碼'})
+en_count = pd.DataFrame(en_count[:224])
+en_count = en_count.reset_index()
+en_count = en_count[['帳號', '密碼']]
+
+df_110新生_中文_2 = pd.concat([df_110新生_中文, ch_count], axis=1)
+df_110新生_英文_2 = pd.concat([df_110新生_英文, en_count], axis=1)
+
+df_110新生_中文_2 = df_110新生_中文_2.rename(columns={'original_stud_no': '學號'})
+df_110新生_英文_2 = df_110新生_英文_2.rename(columns={'original_stud_no': '學號'})
+
+df_110新生_中文_2 = df_110新生_中文_2[['語言', '學號', '帳號', '密碼',
+                               'stud_no', 'type_2_name', 'college_name', 'majr_simple_name',
+       'majr_full_name', 'class_name', 'enter_year', 'grade', 'kind1_name','sex']]
+df_110新生_英文_2 = df_110新生_英文_2[['語言', '學號', '帳號', '密碼',
+                               'stud_no', 'type_2_name', 'college_name', 'majr_simple_name',
+       'majr_full_name', 'class_name', 'enter_year', 'grade', 'kind1_name','sex']]
+
+ch_count_notuse = pd.DataFrame(ch_count1[3048:])
+en_count_notuse = pd.DataFrame(en_count1[224:])
+
+writer = pd.ExcelWriter(road, engine = 'xlsxwriter')
+df_110新生_中文_2.to_excel(writer, sheet_name = '中文', index = False)
+df_110新生_英文_2.to_excel(writer, sheet_name = '英文', index = False)
+ch_count_notuse.to_excel(writer, sheet_name = '未使用_中文', index = False)
+en_count_notuse.to_excel(writer, sheet_name = '未使用_英文', index = False)
+writer.save()
+writer.close()
