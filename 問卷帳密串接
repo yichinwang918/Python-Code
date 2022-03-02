@@ -7,7 +7,7 @@ import pyodbc
 # server = 'localhost\sqlexpress' # for a named instance
 # server = 'myserver,port' # to specify an alternate port
 
-server = '***.***.**.**'
+server = '**.***.**.**'
 database = '*'
 username = '*'
 password = '*'
