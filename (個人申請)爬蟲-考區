@@ -1,0 +1,110 @@
+import sys
+sys.modules[__name__].__dict__.clear()
+
+#import os, sys
+#def MkDir():
+#    path = r'D:\測試\png_'#创建文件路径
+#    i = 0
+#    for i in range(1,22,1): #创建文件个数
+#        file_name = path + str(i)
+#        os.mkdir(file_name)
+#        i=i+1
+#        file_name_child = file_name + "/left_colorimages"
+#        os.mkdir(file_name_child)
+#MkDir()
+
+
+#-------------------------------------------------------------------------------------------------------
+from urllib import request
+import re
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from unicodedata import normalize
+from PIL import Image
+import pytesseract
+import os
+import numpy as np
+import base64
+import importlib
+import glob
+import string
+import time
+from glob import glob
+url1="https://www.com.tw/cross/"
+url2 = 'test_hs_'
+url3 = '_111.html'
+
+#新開都要記的換header
+
+
+headers = {"Cookie":"_ga=GA1.3.414405175.1642397594; _ga=GA1.1.414405175.1642397594; __gads=ID=08dc50a43fea6e5b-2256503c29d000f8:T=1643081616:RT=1643081616:S=ALNI_MZSIVrhJggLvivJ0tFcKQ4go01r5w; PHPSESSID=38uqhje4rt444liej687pmadr5; cf_chl_2=ab4e98dbb6f9ab3; cf_chl_prog=x11; cf_clearance=eqjK5KbguSqJj3bBdVLwjPy61xybjF5pfx6i02CrnY4-1650424931-0-150; _gid=GA1.3.1320201957.1650424932; _gid=GA1.1.1320201957.1650424932",
+        "User-Agent":" Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36"}
+
+url0="https://www.com.tw/cross/test_county111.html"
+req_0 = request.Request(url=url0,headers=headers)
+rsp_0 = request.urlopen(req_0)
+html_0 = rsp_0.read().decode()
+time.sleep(3)
+data_0 = html_0
+table = pd.read_html(data_0)
+
+df_0 = table[2]
+df_0 = df_0.iloc[:, [1, 3, 5]]
+df_0 = df_0.dropna(how='all')
+df_0 = df_0.transpose()
+list_1 = list(df_0[1])
+list_2 = list(df_0[3])
+list_3 = list(df_0[5])
+list_4 = list(df_0[7])
+list_5 = list(df_0[9])
+list_6 = list(df_0[11])
+list_7 = list(df_0[13])
+list_combined = list_1+list_2+list_3+list_4+list_5+list_6+list_7
+df_0 = pd.DataFrame(list_combined)
+df_0 = df_0.rename(columns={0:'所在縣市'})
+
+path = r'C:\Users\User\Desktop\東海IR\IR資料與分析\主要議題與分析\招生\111招生相關\所有考區'
+
+for i in range(0,21,1):
+    x = 100+i
+    url = url1+url2+str(x)+url3
+    req = request.Request(url=url,headers=headers)
+
+    rsp = request.urlopen(req)
+    html = rsp.read().decode()
+    time.sleep(3)
+    data = html
+
+    table_MN = pd.read_html(data)
+    df = table_MN[2]
+    df = df.iloc[:,[1,3,5]]
+    df = df.dropna(how='all')
+#    df = df.replace({np.nan:' '})
+    df_1 = pd.DataFrame(df[1])
+    df_1 = df_1.rename(columns={1:'考區'})
+    df_2 = pd.DataFrame(df[3])
+    df_2 = df_2.rename(columns={3:'考區'})
+    df_3 = pd.DataFrame(df[5])
+    df_3 = df_3.rename(columns={5:'考區'})
+
+    data = pd.concat([df_1, df_2, df_3], axis=0)
+    data.reset_index(inplace=True, drop=False)
+    data['縣市'] = df_0.iloc[0+i,0]
+    i_str='考區_'+str(i)
+    filename=i_str+'.csv'
+    data.to_csv(path+'\\'+filename, index=False, encoding='utf_8_sig')
+
+
+
+files = glob('C:/Users/User/Desktop/東海IR/IR資料與分析/主要議題與分析/招生/111招生相關/所有考區/考區*.csv')
+print(files)
+
+df_m = pd.concat((pd.read_csv(file, usecols=['index','考區','縣市'], dtype={'index':str, 'name':str, 'tweet':str}) for file in files), ignore_index=True)
+df_m = df_m.dropna()
+df_m['縣市'] = df_m['縣市'].map(lambda x:x.split('(')[0])
+df_m = df_m[['縣市', '考區']]
+
+df_m.to_csv(r'C:\Users\User\Desktop\東海IR\IR資料與分析\主要議題與分析\招生\111招生相關\111_學測考區.csv', index=False, encoding='utf_8_sig')
