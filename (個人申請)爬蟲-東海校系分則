@@ -1,0 +1,151 @@
+import sys
+sys.modules[__name__].__dict__.clear()
+
+from urllib import request
+import re
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from unicodedata import normalize
+from PIL import Image
+import pytesseract
+import os
+import numpy as np
+import base64
+import importlib
+import glob
+import string
+import time
+from glob import glob
+
+#新開都要記的換header
+headers = {"Cookie":"_ga=GA1.3.414405175.1642397594; _ga=GA1.1.414405175.1642397594; __gads=ID=08dc50a43fea6e5b-2256503c29d000f8:T=1643081616:RT=1643081616:S=ALNI_MZSIVrhJggLvivJ0tFcKQ4go01r5w; PHPSESSID=38uqhje4rt444liej687pmadr5; cf_clearance=eqjK5KbguSqJj3bBdVLwjPy61xybjF5pfx6i02CrnY4-1650424931-0-150; _gid=GA1.3.1320201957.1650424932; _gid=GA1.1.1320201957.1650424932; _ga_R1TKJQCMRF=GS1.1.1650596274.2.0.1650596274.60; _ga_GB26Y4NW27=GS1.1.1650607056.3.1.1650607822.56",
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36"}
+
+#抓學校代碼------------------------------------------------------------------------------------------
+url="https://www.com.tw/cross/"
+req = request.Request(url=url,headers=headers)
+rsp = request.urlopen(req)
+html = rsp.read().decode()
+time.sleep(3)
+data = html
+table = pd.read_html(data)
+
+df = table[2]
+df = df.iloc[:, [1,3,5]]
+df = df.dropna(how='all')
+df = df.replace({np.nan:' '})
+
+df_1 = pd.DataFrame(df[1])
+df_1 = df_1.rename(columns={1: '學校'})
+df_2 = pd.DataFrame(df[3])
+df_2 = df_2.rename(columns={3: '學校'})
+df_3 = pd.DataFrame(df[5])
+df_3 = df_3.rename(columns={5: '學校'})
+data = pd.concat([df_1, df_2, df_3], axis=0)
+
+data = data['學校'].str.split(' ',2, expand=True)
+data = data.rename(columns={0:'代碼', 1:'學校'})
+data.reset_index(inplace=True, drop=False)
+data = data.iloc[0:68,:]
+
+
+#校系分則(抓校系代碼)------------------------------------------------------------------------------
+headers = {"Cookie":"_ga=GA1.3.414405175.1642397594; _ga=GA1.1.414405175.1642397594; __gads=ID=08dc50a43fea6e5b-2256503c29d000f8:T=1643081616:RT=1643081616:S=ALNI_MZSIVrhJggLvivJ0tFcKQ4go01r5w; PHPSESSID=38uqhje4rt444liej687pmadr5; cf_clearance=eqjK5KbguSqJj3bBdVLwjPy61xybjF5pfx6i02CrnY4-1650424931-0-150; _gid=GA1.3.1320201957.1650424932; _gid=GA1.1.1320201957.1650424932; _ga_R1TKJQCMRF=GS1.1.1650596274.2.0.1650596274.60; _ga_GB26Y4NW27=GS1.1.1650610210.4.1.1650611091.56",
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36"}
+
+url1="https://www.com.tw/cross/"
+url2 = 'university_'
+url3 = '_111.html'
+
+path = r'C:\Users\User\Desktop\東海IR\IR資料與分析\主要議題與分析\招生\111招生相關\所有校系代碼'
+
+for i in range(0,68,1):
+    x = data['代碼'][i]
+    url_t = url1+url2+str(x)+url3
+    req_t = request.Request(url=url_t,headers=headers)
+    rsp_t = request.urlopen(req_t)
+    html_t = rsp_t.read().decode()
+    time.sleep(2)
+    data_t = html_t
+    table_t = pd.read_html(data_t)
+
+    df_t = table_t[2]
+    df_t = df_t.iloc[:,[0,1]]
+    df_t = df_t.dropna(how='all')
+    df_t = df_t.iloc[2:,:]
+    df_t[0] = df_t[0].map(lambda x:x.split('(')[1])
+    df_t[0] = df_t[0].map(lambda x:x.split(')')[0])
+    df_t = df_t.rename(columns={0:'校系代碼', 1:'系名'})
+    i_str='校系代碼_'+str(i)
+    filename=i_str+'.csv'
+    df_t.to_csv(path+'\\'+filename, index=False, encoding='utf_8_sig')
+
+#將所有校系代碼合併為一dataframe------------------------------------------------------------------------------
+files = glob('C:/Users/User/Desktop/東海IR/IR資料與分析/主要議題與分析/招生/111招生相關/所有校系代碼/校系代碼_*.csv')
+print(files)
+df_t_merge = pd.concat((pd.read_csv(file, usecols=['校系代碼','系名'], dtype={'校系代碼':str, '系名':str}) for file in files), ignore_index=True)
+
+#只抓東海
+headers = {"Cookie":"_ga=GA1.3.414405175.1642397594; _ga=GA1.1.414405175.1642397594; __gads=ID=08dc50a43fea6e5b-2256503c29d000f8:T=1643081616:RT=1643081616:S=ALNI_MZSIVrhJggLvivJ0tFcKQ4go01r5w; PHPSESSID=38uqhje4rt444liej687pmadr5; cf_clearance=eqjK5KbguSqJj3bBdVLwjPy61xybjF5pfx6i02CrnY4-1650424931-0-150; _gid=GA1.3.1320201957.1650424932; _gid=GA1.1.1320201957.1650424932; _ga_R1TKJQCMRF=GS1.1.1650596274.2.0.1650596274.60; _ga_GB26Y4NW27=GS1.1.1650610210.4.1.1650611091.56",
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36"}
+url_thu = "https://www.com.tw/cross/university_009_111.html"
+req_thu = request.Request(url=url_thu,headers=headers)
+rsp_thu = request.urlopen(req_thu)
+html_thu = rsp_thu.read().decode()
+time.sleep(2)
+data_thu = html_thu
+table_thu = pd.read_html(data_thu)
+
+df_thu = table_thu[2]
+df_thu = df_thu.iloc[3:, [0,1]]
+df_thu = df_thu.dropna(how='all')
+df_thu[0] = df_thu[0].map(lambda x:x.split('(')[1])
+df_thu[0] = df_thu[0].map(lambda x:x.split(')')[0])
+df_thu.reset_index(inplace=True, drop=False)
+
+#校系分則(抓校系分則)------------------------------------------------------------------------------
+headers = {"Cookie":"_ga=GA1.3.414405175.1642397594; _ga=GA1.1.414405175.1642397594; __gads=ID=08dc50a43fea6e5b-2256503c29d000f8:T=1643081616:RT=1643081616:S=ALNI_MZSIVrhJggLvivJ0tFcKQ4go01r5w; PHPSESSID=38uqhje4rt444liej687pmadr5; cf_clearance=eqjK5KbguSqJj3bBdVLwjPy61xybjF5pfx6i02CrnY4-1650424931-0-150; _gid=GA1.3.1320201957.1650424932; _gid=GA1.1.1320201957.1650424932; _ga_R1TKJQCMRF=GS1.1.1650596274.2.0.1650596274.60; _ga_GB26Y4NW27=GS1.1.1650610210.4.1.1650611091.56",
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36"}
+url_detail_1 = "https://www.cac.edu.tw/apply111/system/0ColQry_for111apply_8fr51gfw/html/111_"
+url_detail_2 = ".htm"
+
+path = r'C:\Users\User\Desktop\東海IR\IR資料與分析\主要議題與分析\招生\111招生相關\東海所有系所招生名額'
+
+for j in range(0,52,1):
+    y= df_thu[0][j]
+    url_detail = url_detail_1+str(y)+url_detail_2
+    req_detail = request.Request(url=url_detail,headers=headers)
+    rsp_detail = request.urlopen(req_detail)
+    html_detail = rsp_detail.read().decode()
+    time.sleep(3)
+    data_detail = html_detail
+    table_detail = pd.read_html(data_detail)
+
+    df_detail = table_detail[1]
+    df_detail = df_detail.iloc[:,0:7]
+    df_detail = df_detail.iloc[:,0:2]
+    df_detail = df_detail.transpose()
+    df_detail = df_detail.iloc[1:2,:]
+    df_detail = df_detail.rename(columns={0:'校系代碼',1:'招收一般生人數',2:'性別要求',3:'預定甄試人數',4:'招收一般原住民人數',5:'招收離島生人數',6:'願景計畫外加名額'})
+    y_str = '東海_校系代碼_'+str(y)
+    filename = y_str+'.csv'
+    df_detail.to_csv(path+'\\'+filename, index=False, encoding='utf_8_sig')
+
+#將東海所有校系代碼合併為一dataframe------------------------------------------------------------------------------
+filess = glob('C:/Users/User/Desktop/東海IR/IR資料與分析/主要議題與分析/招生/111招生相關/東海所有系所招生名額/東海_校系代碼_*.csv')
+print(filess)
+df_thu2 = pd.concat((pd.read_csv(file, usecols=['校系代碼', '招收一般生人數', '性別要求', '預定甄試人數', '招收一般原住民人數', '招收離島生人數','願景計畫外加名額'],dtype={'校系代碼':str, '招收一般生人數':str, '性別要求':str, '預定甄試人數':str, '招收一般原住民人數':str,'招收離島生人數':str,'願景計畫外加名額':str}) for file in filess), ignore_index=True)
+df_thu2 = df_thu2[['校系代碼', '招收一般生人數', '招收一般原住民人數', '招收離島生人數', '預定甄試人數']]
+df_thu2['招收一般原住民人數'] = df_thu2['招收一般原住民人數'].replace({'無':0})
+df_thu2['招收離島生人數'] = df_thu2['招收離島生人數'].replace({'無':0})
+df_thu2.astype({'校系代碼': 'str', '招收一般生人數': 'int','招收一般原住民人數': 'int','招收離島生人數': 'int','預定甄試人數': 'int'}).dtypes
+
+#merge 科系
+df_thu2= pd.merge(df_thu2, df_thu, left_on='校系代碼', right_on=0, how='left')
+df_thu2 = df_thu2[['校系代碼', 1, '招收一般生人數', '招收一般原住民人數', '招收離島生人數', '預定甄試人數']]
+df_thu2 = df_thu2.rename(columns={1:'申請東海系所'})
+
+df_thu2.to_csv(r'C:\Users\User\Desktop\東海IR\IR資料與分析\主要議題與分析\招生\111招生相關\20222東海科系招生人數.csv', index=False, encoding='utf_8_sig')
