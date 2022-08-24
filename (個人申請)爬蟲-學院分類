@@ -1,0 +1,39 @@
+import sys
+sys.modules[__name__].__dict__.clear()
+
+from urllib import request
+import re
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from unicodedata import normalize
+from PIL import Image
+import pytesseract
+import os
+import numpy as np
+import base64
+import importlib
+import glob
+import string
+import time
+
+#新開都要記的換header
+
+headers = {"Cookie":"_ga_N4Z5PR0ZY7=GS1.1.1642563368.1.0.1642563386.42; _ga_LWMT1C8DPD=GS1.1.1642647305.2.1.1642647350.0; _ga_NDF5HDXM1X=GS1.1.1642662094.1.1.1642662443.0; _clck=g3c8l2|1|eye|0; _ga_EH2WD3WQ41=GS1.1.1643177666.4.1.1643177866.51; _ga=GA1.3.245837538.1633572916; _ga_6J2L99X5CR=GS1.1.1644812012.2.1.1644812081.0; PHPSESSID=8090akqmenbuj1km2udl8ei3v2; _gid=GA1.3.2055628684.1650244614; _gat=1",
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36"}
+
+url="http://cdn.thu.edu.tw/web/freshmen/detail.php?scid=61&sid=93"
+req = request.Request(url=url,headers=headers)
+rsp = request.urlopen(req)
+html = rsp.read().decode()
+time.sleep(3)
+data = html
+table = pd.read_html(data)
+
+arr = np.array(table).reshape(48,3)
+df = pd.DataFrame(arr, columns=['學院', '學系', 'call'])
+
+df.to_csv(r'C:\Users\User\Desktop\東海IR\IR資料與分析\主要議題與分析\招生\111招生相關\學院分類.csv', index=False, encoding='utf_8_sig')
+

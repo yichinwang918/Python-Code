@@ -1,0 +1,119 @@
+import sys
+sys.modules[__name__].__dict__.clear()
+
+import pandas as pd
+import pyodbc
+# Some other example server values are
+# server = 'localhost\sqlexpress' # for a named instance
+# server = 'myserver,port' # to specify an alternate port
+
+server = '140.128.97.85'
+database = 'thuir'
+username = 'thuir'
+password = 'analysis8yBS'
+cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
+cursor = cnxn.cursor()
+
+cursor.execute("SELECT @@version;")
+row = cursor.fetchone()
+while row:
+    print(row[0])
+    row = cursor.fetchone()
+cursor = cnxn.cursor()
+
+
+
+#抓1102這學期有註冊學生
+query = "SELECT * FROM thuir_register  WHERE SETYEAR='110' AND SETTERM='2'  AND A_REG='註冊';"
+reg = pd.read_sql(query,cnxn)
+
+
+#選課紀錄
+query6 = "SELECT * FROM THUIR_STUDSELE ;"
+studsele6 = pd.read_sql(query6,cnxn)
+
+#開課
+query2 = "SELECT * FROM thuir_studcurr_attr WHERE CURR_ATTR='創新學院-雲創';"
+studsele2 = pd.read_sql(query2,cnxn)
+list(studsele2['CURR_CODE'])
+
+
+studsele6_2 = studsele6[studsele6['CURR_CODE'].isin(['1147', '1175', '6239', '1139', '1140', '1150', '1152', '3574', '3575', '3576', '3181', '3182', '3183', '3184', '3185', '3186', '3187', '3188', '2901', '2902', '2903', '2904', '2905', '2906', '2907', '2908', '2909', '2910', '2911', '2912', '2901', '2902', '2903', '2904', '2905', '2906', '2908', '2909', '2910', '2911', '2912', '2913', '2901', '2902', '2903', '2904', '2905', '2906', '2907', '2908', '2901', '2902', '2903', '2904', '2905', '2906', '2907', '2908', '2901', '2902', '2903', '2904', '2905', '2906', '2907', '2908', '2901', '2902', '2903', '2904', '2905', '2906', '2907', '2908', '2909'])]
+studsele6_3 = pd.merge(studsele6_2,reg, left_on= 'STUD_NO', right_on= 'STUD_NO', how='left')
+studsele6_3 = studsele6_3[studsele6_3['A_REG'].isin(['註冊'])]
+
+
+aa = studsele6_3.drop_duplicates(subset=['STUD_NO'], keep='last')
+
+
+
+###-----------------------------------------------------------------------------------------------
+query = "SELECT * FROM thuir_alumni ;"
+dd = pd.read_sql(query,cnxn)
+
+dd = dd.rename(columns={'survey_year':'畢業年',
+                        'question_num':'畢業滿幾年',
+                        'stud_no':'學號',
+                        'quiz_num':'題號',
+                        'school_year':'調查學年'})
+
+dd = dd[['調查學年', '畢業滿幾年', '畢業年', '學號', '題號', 'ans_0', 'ans_1', 'ans_2', 'ans_3', 'ans_4', 'ans_5']]
+
+dd_1 = dd[dd['畢業滿幾年'].isin([1.0])]
+dd_3 = dd[dd['畢業滿幾年'].isin([3.0])]
+dd_5 = dd[dd['畢業滿幾年'].isin([5.0])]
+
+writer = pd.ExcelWriter(r'C:\Users\User\Desktop\106-110就友室問卷rawdata\畢業流向(1_3_5年)\106-110畢業流向資料.xlsx', engine = 'xlsxwriter')
+dd.to_excel(writer, sheet_name = '總資料', index=False)
+dd_1.to_excel(writer, sheet_name = '畢業滿一年', index=False)
+dd_3.to_excel(writer, sheet_name = '畢業滿三年', index=False)
+dd_5.to_excel(writer, sheet_name = '畢業滿五年', index=False)
+writer.save()
+writer.close()
+
+
+###-----------------------------------------------------------------------------------------------
+query = "SELECT * FROM thuir_alumni ;"
+dd = pd.read_sql(query,cnxn)
+dd.columns
+dd['CURR_ATTR'].value_counts()
+
+dd['學年期'] = dd['SETYEAR'].map(str)+dd['SETTERM'].map(str)
+
+dd_ci = dd[dd['CURR_ATTR']=='系整合式']
+dd_ui = dd[dd['CURR_ATTR']=='院整合式']
+
+writer = pd.ExcelWriter(r'C:\Users\User\Desktop\院_系整合_開課.xlsx', engine = 'xlsxwriter')
+dd.to_excel(writer, sheet_name = '總資料', index=False)
+dd_ci.to_excel(writer, sheet_name = '系整合式', index=False)
+dd_ui.to_excel(writer, sheet_name = '院整合式', index=False)
+writer.save()
+writer.close()
+
+###-------------------------------------------------------------------------
+queryqq = "SELECT * FROM thuir_studcurr_attr WHERE SETYEAR=109 AND CURR_ATTR='AI計畫L2'"
+df = pd.read_sql(queryqq, cnxn)
+df['CURR_ATTR'].value_counts()
+cour_name = df.drop_duplicates(subset=['COUR_CNAME'], keep='last')
+cn = list(cour_name['COUR_CNAME'])
+
+query = "SELECT * FROM thuir_studcurr_attr WHERE SETYEAR=110 AND SETTERM=2 AND COUR_CNAME "
+        "IN ('語料庫語言學與自然語言處理', '創意科學實作專題（一）', '智慧醫療入門', '量子資訊與量子計算', '生物統計學實驗', '分子生物學', '動物組織學實驗', '生物建模', '進階生物產業講堂', '計算機概論', '工程統整專題（一）', '領導與倫理：工程倫理與實習規範', '工程AI導論', '智慧化製程操作（一）： AI建模實作', '新經濟與智慧營運專題', '商用資料庫', '乳牛學', '豬學', '動物資源經營學', '家禽生理學', '企業實習（一）', '食品科學概論', '食品創新實務（二）', '食品安全概論', '暑期實習', '食品風險溝通實務講座', '餐旅連鎖經營', '餐旅連鎖經營實作', '設計基礎', '產品語意學', 'Franchise Management', 'Franchise Management in Practice', '深度學習之物理研究應用專題（一）', '機器學習', '資料探勘實務', '深度學習', '智慧醫療', '認識人工智慧：從人工智慧到商業智慧', '認識人工智慧：企業人工智慧', '生物統計學', '高階食品安全管制系統實務', '認知心理與行為設計研究', '願景設計', '數位運算美學', '智慧景觀', '人工智慧法律專題研究（一）', 'AI發展下個人資料保護之新發展', 'AI法律導論', '文討：人工智能與文學', '量子機器學習', '生物分析化學', '細胞生物學實驗', '生物產業講堂', '程式語言', '數據分析導論', '專題研究（一）', '深度學習導論', '電腦整合與彈性製造', '企業資訊系統', 'AI實作（一）', '增強學習', '智慧零售與精準行銷', 'AI+商業價值創造個案講堂', 'AI MarTech行銷科技與應用', '數位行銷實務', '智慧服務創新實務', 'Python與資料科學概論', '微生物學', '畜牧產業企劃', '畜舍規劃學', '畜產網路行銷', '畜產專業溝通–生產製造與行銷管理', '動物福祉', '畜產智慧化', '反芻動物營養學', '食品創新實務（一）', '食品流通學概論', '智慧食品鏈AI專題講座', '食品安全管制系統', '專題討論（一）', '產品設計', '製造程序', '人因工程', 'AI發展下個人資料保護', 'IOT物聯網技術與應用', '人工智慧進階實務', 'AWS雲端服務認證與證照', '自然：動物福祉', '多元與議題導向：美食地景的體驗與反思', '藝術與人工智慧', '深度學習之物理研究應用專題（二）', '太陽能電池及系統專題實作', '統計生態學', '智慧化製程操作—高等程序控制', '智慧化循環經濟', '智慧化永續都市  ', '智慧物聯網與感測元件', '大數據應用與產業案例實作', '智慧醫療案例與實作', '食品存貨管理', '餐旅文創研究', '人類資訊處理與互動設計', '參數與衍生式設計', '人工智慧與數位創新專題', '設計心理學', '前瞻設計與認知科學', '區塊鍊與機器人法律問題', '人工智慧產業法律案例研析', '人工智慧法律專題研究（二）')"
+df_ai2 = pd.read_sql(query, cnxn)
+
+##---------------------------------------------------------------------------------------------------------------
+queryqq = "SELECT * FROM thuir_studcurr_attr WHERE SETYEAR=110 AND SETTERM=2 AND CURR_ATTR='院整合式';"
+df = pd.read_sql(queryqq, cnxn)
+
+
+
+###--多個檔案合併成一個檔--------------------------------------------------------------------------------------------------------
+sym	stud_no	type_name	college	majr_no	majr_full_name	grade	reg_string	yn_L1	yn_L2+	yn_L	yn_L2	yn_L3	yn_cross	cross_n	cross_mean	yn_cross_sym	cross_n_sym	cross_mean_sym	yn_creativity	creativity_n	creativity_mean	yn_creativity_sym	creativity_n_sym	creativity_mean_sym
+
+import pandas as pd
+from glob import glob
+filess = glob('C:/Users/User/Desktop/l1繼續修l2程式設計/1110516_*.csv')
+print(filess)
+
+
+df_thu2 = pd.concat((pd.read_csv(file,usecols=['sym', 'stud_no', 'type_name', 'college', 'majr_no', 'majr_full_name', 'grade', 'reg_string', 'yn_L1', 'yn_L2+', 'yn_L', 'yn_L2', 'yn_L3', 'yn_cross', 'cross_n', 'cross_mean', 'yn_cross_sym', 'cross_n_sym', 'cross_mean_sym', 'yn_creativity', 'creativity_n', 'creativity_mean', 'yn_creativity_sym', 'creativity_n_sym', 'creativity_mean_sym'],dtype={'sym':str, 'stud_no':str, 'type_name':str, 'college':str, 'majr_no':str,'majr_full_name':str,'grade':str, 'reg_string':str, 'yn_L1':str, 'yn_L2+':str,'yn_L':str,'yn_L2':str, 'yn_L3':str, 'yn_cross':str, 'cross_n':str,'cross_mean':str,'yn_cross_sym':str, 'cross_n_sym':str, 'cross_mean_sym':str, 'yn_creativity':str,'creativity_n':str,'creativity_mean':str, 'creativity_n_sym':str, 'creativity_mean_sym':str}) for file in filess), ignore_index=True)
